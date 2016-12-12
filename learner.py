@@ -27,7 +27,7 @@ class Learner:
         epsilon = 1e-6, 
         mem_size = 100000,
         boardsize = 13):
-    
+
         input_size = boardsize+2*padding
         input_shape = (num_channels,input_size,input_size)
         self.mem = replay_memory(mem_size, input_shape)
@@ -36,6 +36,8 @@ class Learner:
         state = T.tensor3('state')
         state_batch = T.tensor4('state_batch')
         action_batch = T.matrix('action_batch')
+        mentor_Pws = T.tensor3('mentor_Pws')
+        mentor_Qsigmas = T.tensor3('mentor_Qsigmas')
         Pw_targets = T.fvector('Pw_targets')
         Qsigma_targets = T.fvector('Qsigma_targets')
 
@@ -187,11 +189,11 @@ class Learner:
         self._evaluate = theano.function(
             [state],
             givens = {state_batch : state.dimshuffle('x',0,1,2)},
-            outputs = [Pw_output*(1-played),Qsigma_output*(1-played)]
+            outputs = [Pw_output*(1-played), Qsigma_output*(1-played)]
             )
         self._evaluate_multi = theano.function(
             [state_batch],
-            outputs = [Pw_output*(1-played),Qsigma_output*(1-played)]
+            outputs = [Pw_output*(1-played), Qsigma_output*(1-played)]
         )
 
         #Build Pw update function
@@ -212,8 +214,35 @@ class Learner:
             updates = Qsigma_updates
         )
 
-    def update_memory(self, state1, action, reward, state2, terminal):
-        self.mem.add_entry(state1, action, reward, state2, terminal)
+        #Build Pw mentor function
+        Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(),mentor_Pws.flatten()))
+        Pw_params = lasagne.layers.get_all_params(Pw_output)
+        Pw_updates = lasagne.update.rmsprop(Pw_loss, Pw_params, alpha, rho, epsilon)
+        self._mentor_Pw = theano.function(
+            [state_batch, mentor_Pws],
+            updates = Pw_updates
+        )
+
+        #Build Qsigma mentor function
+        Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(),mentor_Qsigmas.flatten()))
+        Qsigma_params = lasagne.layers.get_all_params(Qsigma_output)
+        Qsigma_updates = lasagne.update.rmsprop(Qsigma_loss, Qsigma_params, alpha, rho, epsilon)
+        self._mentor_Qsigma = theano.function(
+            [state_batch, mentor_Qsigmas],
+            updates = Qsigma_updates
+        )
+
+        #Build mentor function for both Pw and Q_sigma
+        loss = Pw_loss + Qsigma_loss
+        params = Pw_params + Qsigma_params
+        updates = lasagne.update.rmsprop(loss, params, alpha, rho, epsilon)
+        self._mentor = theano.function(
+            [state_batch, mentor_Pws, mentor_Qsigmas],
+            updates = updates
+        )
+
+    def update_memory(self, state1, action, state2, terminal):
+        self.mem.add_entry(state1, action, state2, terminal)
 
     def learn(self, batch_size):
         #Do nothing if we don't yet have enough entries in memory for a full batch
@@ -227,13 +256,16 @@ class Learner:
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = -1
-        self._update_Pw(states1,actions,Pw_targets)
+        self._update_Pw(states1, actions, Pw_targets)
 
         #Update Qsigma network
         gamma = (joint/(1-Pw))**2
         Qsigma_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Qsigma_targets = Pw.flatten()[T.arange(batch_size),actions]**2-joint**2+np.max(gamma*Qsigma)
-        self._update_Qsigma(states1,actions,Qsigma_targets)
+        self._update_Qsigma(states1, actions, Qsigma_targets)
+
+    def mentor(self, states, Pws, Qsigmas):
+        self._mentor(states, Pws, Qsigmas)
 
     def exploration_policy(self, state):
         Pw, Qsigma = self._evaluate(state)
@@ -243,7 +275,7 @@ class Learner:
         return action
 
     def optimization_policy(self, state):
-        Pw = self._evaluate(state).flatten()
+        Pw = self._evaluate_Pw(state).flatten()
         action = np.argmax(Pw.flatten())
         return action
 
