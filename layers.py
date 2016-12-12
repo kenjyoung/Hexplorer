@@ -1,11 +1,9 @@
-import theano
 from theano import tensor as T
 from theano.tensor.nnet import conv
-import numpy as np
 import lasagne
 
 
-#TODO: debug this layer
+#TODO: debug this layer, make sure initialization makes sense
 class HexConvLayer(lasagne.layers.Layer):
     def __init__(
         self, 
@@ -27,31 +25,31 @@ class HexConvLayer(lasagne.layers.Layer):
             self.b = self.add_param(b, (num_filters), name='b')
 
     def get_output_for(self, input, **kwargs):
-        W = T.zeros((num_filters, self.input_shape[1], 2*radius-1, 2*radius-1))
+        W = T.zeros((self.num_filters, self.input_shape[1], 2*self.radius-1, 2*self.radius-1))
         index=0
         for i in range(self.radius-1):
-            W = T.set_subtensor(W[:,:,self.radius-1-i:,i], self.W_values[:,:,index:index+radius+i])
-            index = index+radius+i
-        W = T.set_subtensor(W[:,:,:,radius], self.W[:,:,index:index+2*radius-1])
-        index = index+2*radius-1
+            W = T.set_subtensor(W[:,:,self.radius-1-i:,i], self.W_values[:,:,index:index+self.radius+i])
+            index = index+self.radius+i
+        W = T.set_subtensor(W[:,:,:,self.radius], self.W[:,:,index:index+2*self.radius-1])
+        index = index+2*self.radius-1
         for i in range(self.radius-1):
-            W = T.set_subtensor(W[:,:,:2*(self.radius-1)-i],self.W_values[:,:,index:index+2*radius-i])
-            index = index+2*radius-i
+            W = T.set_subtensor(W[:,:,:2*(self.radius-1)-i],self.W_values[:,:,index:index+2*self.radius-i])
+            index = index+2*self.radius-i
 
         conv_out = conv.conv2d(
             input = input,
             filters = W,
-            filter_shape = (self.num_filters,input_shape[1],2*self.radius-1,2*self.radius-1),
+            filter_shape = (self.num_filters,self.input_shape[1],2*self.radius-1,2*self.radius-1),
             image_shape = self.input_shape
         )
 
-        squished_out = nonlinearity(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        squished_out = self.nonlinearity(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
 
-        if(padding == 0):
+        if(self.padding == 0):
             padded_out = squished_out
         else:
-            padded_out = T.zeros((squished_out.shape[0], num_filters, input_shape[2], input_shape[3]))
-            padded_out = T.set_subtensor(padded_out[:,:,padding:-padding,padding:-padding], squished_out)
+            padded_out = T.zeros((squished_out.shape[0], self.num_filters, self.input_shape[2], self.input_shape[3]))
+            padded_out = T.set_subtensor(padded_out[:,:,self.padding:-self.padding,self.padding:-self.padding], squished_out)
 
         return padded_out
 
