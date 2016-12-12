@@ -13,21 +13,27 @@ east = 3
 north = 4
 south = 5
 num_channels = 6
-boardsize = 13
 padding = 2
-input_size = boardsize+2*padding
+boardsize = 13
 neighbor_patterns = ((-1,0), (0,-1), (-1,1), (0,1), (1,0), (1,-1))
-input_shape = (num_channels,input_size,input_size)
 
 #TODO: Debug, figure out how to save and load rms_prop state along with any other needed info
 
 class Learner:
-    def __init__(self, loadfile = None, alpha = 0.001, rho = 0.9, epsilon = 1e-6):
-        self.mem = replay_memory(100000, input_shape)
+    def __init__(self, 
+        loadfile = None, 
+        alpha = 0.001, 
+        rho = 0.9, 
+        epsilon = 1e-6, 
+        mem_size = 100000,
+        boardsize = 13):
+    
+        input_size = boardsize+2*padding
+        input_shape = (num_channels,input_size,input_size)
+        self.mem = replay_memory(mem_size, input_shape)
 
         #Create Input Variables
         state = T.tensor3('state')
-        action = T.fvector('action')
         state_batch = T.tensor4('state_batch')
         action_batch = T.matrix('action_batch')
         Pw_targets = T.fvector('Pw_targets')

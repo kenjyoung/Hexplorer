@@ -15,14 +15,15 @@ class HexConvLayer(lasagne.layers.Layer):
         b=lasagne.init.Constant(0),
         padding = 0,
          **kwargs):
-            super(HexConvLayer, self).__init__(incoming, **kwargs)
-            self.num_filters = num_filters
-            self.radius = radius
-            self.padding = padding
-            self.nonlinearity = nonlinearity
-            W_size = 2*sum([i+radius for i in range(radius-1)])+2*radius-1
-            self.W_values = self.add_param(W, (num_filters, self.input_shape[1], W_size), name='W')
-            self.b = self.add_param(b, (num_filters), name='b')
+    
+        super(HexConvLayer, self).__init__(incoming, **kwargs)
+        self.num_filters = num_filters
+        self.radius = radius
+        self.padding = padding
+        self.nonlinearity = nonlinearity
+        W_size = 2*sum([i+radius for i in range(radius-1)])+2*radius-1
+        self.W_values = self.add_param(W, (num_filters, self.input_shape[1], W_size), name='W')
+        self.b = self.add_param(b, (num_filters), name='b')
 
     def get_output_for(self, input, **kwargs):
         W = T.zeros((self.num_filters, self.input_shape[1], 2*self.radius-1, 2*self.radius-1))
