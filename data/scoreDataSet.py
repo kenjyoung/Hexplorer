@@ -6,7 +6,7 @@ positions = preprocess("raw_games.dat")
 print("scoring positions...")
 scores = np.empty((positions.shape[0],boardsize,boardsize))
 num_positions = positions.shape[0]
-output_interval = num_positions/100
+output_interval = num_positions//100
 for i in range(num_positions):
 	if(i%output_interval == 0):
 		print("completion: ",i/output_interval)
@@ -18,5 +18,5 @@ for i in range(num_positions):
 		i-=1
 
 print("saving to file...")
-savefile = open("scoredPositionsFull.npz", 'w')
+savefile = open("scoredPositionsFull.npz", 'wb')
 np.savez(savefile, positions=positions, scores=scores)

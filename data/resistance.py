@@ -148,6 +148,6 @@ def score(state, color):
 			Q[cell] = (min(1,max(-1,C1_prime/C2_prime - 1))+1)/2
 
 	output = -1*np.ones((boardsize, boardsize))
-	for cell, value in Q.iteritems():
+	for cell, value in Q.items():
 		output[cell[0]-padding, cell[1]-padding] = value
 	return output 
