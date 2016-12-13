@@ -8,7 +8,6 @@ from inputFormat import *
 import cPickle
 
 #TODO: Debug, figure out how to save and load rms_prop state along with any other needed info
-
 class Learner:
     def __init__(self, 
         loadfile = None, 
@@ -238,6 +237,10 @@ class Learner:
         if(self.mem.size < batch_size):
             return
         states1, actions, states2, terminals = self.mem.sample_batch(batch_size)
+        states1 = np.asarray(states1, dtype=theano.config.floatX)
+        states2 = np.asarray(states2, dtype=theano.config.floatX)
+        actions = np.asarray(actions, dtype=theano.config.floatX)
+
         Pw, Qsigma = self._evaluate_multi(states2)
         joint = np.prod(1-Pw, axis=(1,2))
 
@@ -254,9 +257,13 @@ class Learner:
         self._update_Qsigma(states1, actions, Qsigma_targets)
 
     def mentor(self, states, Pws, Qsigmas):
+        states = np.asarray(states, dtype=theano.config.floatX)
+        Pws = np.asarray(Pws, dtype=theano.config.floatX)
+        Qsigmas = np.asarray(Qsigmas, dtype=theano.config.floatX)
         self._mentor(states, Pws, Qsigmas)
 
     def exploration_policy(self, state):
+        state = np.asarray(state, dtype=theano.config.floatX)
         Pw, Qsigma = self._evaluate(state)
         joint = np.prod(1-Pw, axis=(1,2))
         gamma = (joint/(1-Pw))**2
@@ -264,6 +271,7 @@ class Learner:
         return action
 
     def optimization_policy(self, state):
+        state = np.asarray(state, dtype=theano.config.floatX)
         Pw = self._evaluate_Pw(state).flatten()
         action = np.argmax(Pw.flatten())
         return action
