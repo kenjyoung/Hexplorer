@@ -1,5 +1,9 @@
 import numpy as np
+import sys
+sys.path.append("..")
 from inputFormat import *
+boardsize = 13
+input_size = boardsize+2*padding
 
 def get_empty(state):
 	count = 0
