@@ -4,18 +4,8 @@ import numpy as np
 import lasagne
 from replay_memory import replay_memory
 from layers import HexConvLayer
+from inputFormat import *
 import cPickle
-
-white = 0
-black = 1
-west = 2
-east = 3
-north = 4
-south = 5
-num_channels = 6
-padding = 2
-boardsize = 13
-neighbor_patterns = ((-1,0), (0,-1), (-1,1), (0,1), (1,0), (1,-1))
 
 #TODO: Debug, figure out how to save and load rms_prop state along with any other needed info
 
@@ -27,7 +17,6 @@ class Learner:
         epsilon = 1e-6, 
         mem_size = 100000,
         boardsize = 13):
-
         input_size = boardsize+2*padding
         input_shape = (num_channels,input_size,input_size)
         self.mem = replay_memory(mem_size, input_shape)
@@ -255,7 +244,7 @@ class Learner:
         #Update Pw network
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
-        Pw_targets[terminals==1] = -1
+        Pw_targets[terminals==1] = 1
         self._update_Pw(states1, actions, Pw_targets)
 
         #Update Qsigma network
