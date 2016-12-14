@@ -1,5 +1,6 @@
 import numpy as np
 from inputFormat import *
+from learner import Learner
 import matplotlib.pyplot as plt
 import cPickle
 import argparse

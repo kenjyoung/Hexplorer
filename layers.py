@@ -10,7 +10,7 @@ class HexConvLayer(lasagne.layers.Layer):
         incoming, 
         num_filters, 
         radius, 
-        nonlinearity = lasagne.nonlinearity.rectify, 
+        nonlinearity = lasagne.nonlinearities.rectify, 
         W=lasagne.init.HeNormal(gain='relu'), 
         b=lasagne.init.Constant(0),
         padding = 0,
@@ -22,8 +22,8 @@ class HexConvLayer(lasagne.layers.Layer):
         self.padding = padding
         self.nonlinearity = nonlinearity
         W_size = 2*sum([i+radius for i in range(radius-1)])+2*radius-1
-        self.W_values = self.add_param(W, (num_filters, self.input_shape[1], W_size), name='W')
-        self.b = self.add_param(b, (num_filters), name='b')
+        self.W_values = self.add_param(W, (self.num_filters, self.input_shape[1], W_size), name='W')
+        self.b = self.add_param(b, (num_filters,), name='b')
 
     def get_output_for(self, input, **kwargs):
         W = T.zeros((self.num_filters, self.input_shape[1], 2*self.radius-1, 2*self.radius-1))
@@ -31,10 +31,10 @@ class HexConvLayer(lasagne.layers.Layer):
         for i in range(self.radius-1):
             W = T.set_subtensor(W[:,:,self.radius-1-i:,i], self.W_values[:,:,index:index+self.radius+i])
             index = index+self.radius+i
-        W = T.set_subtensor(W[:,:,:,self.radius], self.W[:,:,index:index+2*self.radius-1])
+        W = T.set_subtensor(W[:,:,:,self.radius-1], self.W_values[:,:,index:index+2*self.radius-1])
         index = index+2*self.radius-1
         for i in range(self.radius-1):
-            W = T.set_subtensor(W[:,:,:2*(self.radius-1)-i],self.W_values[:,:,index:index+2*self.radius-i])
+            W = T.set_subtensor(W[:,:,:2*self.radius-2-i,self.radius+i],self.W_values[:,:,index:index+2*(self.radius-1)-i])
             index = index+2*self.radius-i
 
         conv_out = conv.conv2d(
@@ -49,10 +49,10 @@ class HexConvLayer(lasagne.layers.Layer):
         if(self.padding == 0):
             padded_out = squished_out
         else:
-            padded_out = T.zeros((squished_out.shape[0], self.num_filters, self.input_shape[2], self.input_shape[3]))
+            padded_out = T.zeros((squished_out.shape[0], squished_out.shape[1], squished_out.shape[2]+2*self.padding, squished_out.shape[3]+2*self.padding))
             padded_out = T.set_subtensor(padded_out[:,:,self.padding:-self.padding,self.padding:-self.padding], squished_out)
 
         return padded_out
 
     def get_output_shape_for(self, input_shape):
-        return (self.num_filters, self.input_shape[1], self.input_shape[2], self.input_shape[3])
+        return (self.input_shape[0], self.num_filters, self.input_shape[1], self.input_shape[2])

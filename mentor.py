@@ -2,8 +2,8 @@ import theano
 import time
 import numpy as np
 from inputFormat import *
-from network import network
-import cPickle
+from learner import Learner
+import pickle
 import argparse
 import os
 
@@ -19,7 +19,7 @@ parser.add_argument("--data", "-d", type =str, help="Specify a directory to save
 args = parser.parse_args()
 
 print("loading data... ")
-datafile = open("data/scoredPositionsFull.npz", 'r')
+datafile = open("data/scoredPositionsFull.npz", 'rb')
 data = np.load(datafile)
 positions = data['positions']
 scores = data['scores']
@@ -35,7 +35,7 @@ n_train = scores.shape[0]
 numEpochs = 100
 iteration = 0
 batch_size = 64
-numBatches = n_train/batch_size
+numBatches = n_train//batch_size
 
 #if load parameter is passed load a network from a file
 if args.load:
@@ -46,7 +46,7 @@ else:
 	Agent = Learner()
 
 print("Training model on mentor set...")
-indices = range(n_train)
+indices = list(range(n_train))
 try:
 	for epoch in range(numEpochs):
 		print("epoch: ",epoch)
@@ -55,12 +55,11 @@ try:
 			t = time.clock()
 			state_batch = positions[indices[batch*batch_size:(batch+1)*batch_size]]
 			Pw_batch = scores[indices[batch*batch_size:(batch+1)*batch_size]]
-			Qsigma_batch = np.ones(Pw_batch.shape())
+			Qsigma_batch = np.ones(Pw_batch.shape)
 			Agent.mentor(state_batch, Pw_batch, Qsigma_batch)
 			run_time = time.clock()-t
 			iteration+=1
 			print("Time per position: ", run_time/(batch_size))
-		costs.append(cost_sum/(batch+1))
 		#save snapshot of network every epoch in case something goes wrong
 		save(Agent)
 except KeyboardInterrupt:
