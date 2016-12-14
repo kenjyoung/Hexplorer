@@ -31,7 +31,7 @@ class Learner:
 
         #Load from file if given
         if(loadfile != None):
-            with file(loadfile, 'rb') as f:
+            with open(loadfile, 'rb') as f:
                 data = pickle.load(f)
             params = data["params"]
             self.mem = data["mem"]
@@ -97,12 +97,12 @@ class Learner:
             self.layers.append(layer)
         Pw_output_layer = HexConvLayer(
                 incoming = self.layers[-1], 
-                num_filters=128, 
+                num_filters=1, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.sigmoid, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
-                padding = 1,
+                padding = 0,
             )
         self.layers.append(Pw_output_layer)
         Pw_output = lasagne.layers.get_output(Pw_output_layer)
@@ -132,7 +132,7 @@ class Learner:
             self.layers.append(layer)
         Qsigma_output_layer = HexConvLayer(
                 incoming = self.layers[-1], 
-                num_filters=128, 
+                num_filters=1, 
                 radius = 2, 
                 nonlinearity = lambda x: 2*lasagne.nonlinearities.sigmoid(x)-1, 
                 W=lasagne.init.HeNormal(gain='relu'), 
@@ -220,7 +220,7 @@ class Learner:
             updates = Qsigma_mentor_updates
         )
 
-        #Build mentor function for both Pw and Q_sigma
+        #Build mentor function for both Pw and Qsigma
         loss = Pw_mentor_loss + Qsigma_mentor_loss
         params = Pw_params + Qsigma_params
         updates = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
@@ -279,5 +279,5 @@ class Learner:
     def save(self, savefile = 'learner.save'):
         params = lasagne.layers.get_all_param_values(self.layers)
         data = {'params':params, 'mem':self.mem}
-        with file(savefile, 'wb') as f:
-            pickle.dump(data, f, protocol=cPickle.HIGHEST_PROTOCOL)
+        with open(savefile, 'wb') as f:
+            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)

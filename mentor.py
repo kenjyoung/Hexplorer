@@ -9,7 +9,10 @@ import os
 
 def save(learner):
 	print("saving network...")
-	save_name = args.data+"/learner.save"
+	if(args.data):
+		save_name = args.data+"/learner.save"
+	else:
+		save_name = "learner.save"
 	learner.save(savefile = save_name)
 
 
