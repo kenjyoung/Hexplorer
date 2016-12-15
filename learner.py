@@ -151,39 +151,39 @@ class Learner:
 
         #Compute played so we can set the outputs for all played cells to 0, which will enforce they
         #don't effect updates and evaluations
-        played = 1-(1-state_batch[:,white,:,:])*(1-state_batch[:,black,:,:])
+        played = 1-(1-state_batch[:,white,padding:-padding,padding:-padding])*(1-state_batch[:,black,padding:-padding,padding:-padding])
 
         #Build Pw evaluate functions
         self._evaluate_Pw = theano.function(
             [state],
             givens = {state_batch : state.dimshuffle('x',0,1,2)},
-            outputs = Pw_output*(1-played)
-            )
+            outputs = (Pw_output*(1-played)).flatten()
+        )
         self._evaluate_Pws = theano.function(
             [state_batch],
-            outputs = Pw_output*(1-played)
+            outputs = (Pw_output*(1-played)).flatten(2)
         )
 
         #Build Qsigma evaluate functions
         self._evaluate_Qsigma = theano.function(
             [state],
             givens = {state_batch : state.dimshuffle('x',0,1,2)},
-            outputs = Qsigma_output*(1-played)
-            )
+            outputs = (Qsigma_output*(1-played)).flatten()
+        )
         self._evaluate_Qsigmas = theano.function(
             [state_batch],
-            outputs = Qsigma_output*(1-played)
+            outputs = (Qsigma_output*(1-played)).flatten(2)
         )
 
         #Build functions to evaluate both Qsigma and Pw
         self._evaluate = theano.function(
             [state],
             givens = {state_batch : state.dimshuffle('x',0,1,2)},
-            outputs = [Pw_output*(1-played), Qsigma_output*(1-played)]
-            )
+            outputs = [(Pw_output*(1-played)).flatten(), (Qsigma_output*(1-played)).flatten()]
+        )
         self._evaluate_multi = theano.function(
             [state_batch],
-            outputs = [Pw_output*(1-played), Qsigma_output*(1-played)]
+            outputs = [(Pw_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2), (Qsigma_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2)]
         )
 
         #Build Pw update function
@@ -237,12 +237,9 @@ class Learner:
         if(self.mem.size < batch_size):
             return
         states1, actions, states2, terminals = self.mem.sample_batch(batch_size)
-        states1 = np.asarray(states1, dtype=theano.config.floatX)
-        states2 = np.asarray(states2, dtype=theano.config.floatX)
-        actions = np.asarray(actions, dtype=theano.config.floatX)
 
         Pw, Qsigma = self._evaluate_multi(states2)
-        joint = np.prod(1-Pw, axis=(1,2))
+        joint = np.prod(1-Pw, axis=1)
 
         #Update Pw network
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
@@ -251,9 +248,9 @@ class Learner:
         self._update_Pw(states1, actions, Pw_targets)
 
         #Update Qsigma network
-        gamma = (joint/(1-Pw))**2
+        gamma = (joint[...,np.newaxis]/(1-Pw))**2
         Qsigma_targets = np.zeros(terminals.size).astype(theano.config.floatX)
-        Qsigma_targets = Pw.flatten()[T.arange(batch_size),actions]**2-joint**2+np.max(gamma*Qsigma)
+        Qsigma_targets = Pw[np.arange(batch_size),actions]**2-joint**2+np.max(gamma*Qsigma)
         self._update_Qsigma(states1, actions, Qsigma_targets)
 
     def mentor(self, states, Pws, Qsigmas):
@@ -263,17 +260,21 @@ class Learner:
         self._mentor(states, Pws, Qsigmas)
 
     def exploration_policy(self, state):
+        epsilon =0.0001
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw, Qsigma = self._evaluate(state)
-        joint = np.prod(1-Pw, axis=(1,2))
+        joint = np.prod(1-Pw)
+        #if we are quite certain this state is a win just play the best move
+        if(joint <0.000001):
+            return self.optimization_policy(state)
         gamma = (joint/(1-Pw))**2
-        action = np.argmax((gamma*Qsigma).flatten())
+        action = np.argmax(gamma*Qsigma)
         return action
 
     def optimization_policy(self, state):
         state = np.asarray(state, dtype=theano.config.floatX)
-        Pw = self._evaluate_Pw(state).flatten()
-        action = np.argmax(Pw.flatten())
+        Pw = self._evaluate_Pw(state)
+        action = np.argmax(Pw)
         return action
 
     def save(self, savefile = 'learner.save'):

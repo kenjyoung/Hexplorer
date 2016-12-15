@@ -14,7 +14,7 @@ class replay_memory:
     def add_entry(self, state1, action, state2, terminal):
         self.state1_memory[self.index, :, :] = state1
         self.state2_memory[self.index, :, :] = state2
-        self.action_memory[self.index, :] = action
+        self.action_memory[self.index] = action
         self.terminal_memory[self.index] = terminal
         self.index += 1
         if(self.index>=self.capacity):

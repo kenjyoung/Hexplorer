@@ -46,7 +46,7 @@ def mirror_game(game):
 	return m_game
 
 def flip_game(game):
-	m_game = np.zeros(game.shape(), dtype=bool)
+	m_game = np.zeros(game.shape, dtype=bool)
 	m_game[white] = np.rot90(game[white],2)
 	m_game[black] = np.rot90(game[black],2)
 	m_game[north] = np.rot90(game[south],2)

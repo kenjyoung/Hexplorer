@@ -1,14 +1,14 @@
 import numpy as np
-from inputFormat import *
 from learner import Learner
 import matplotlib.pyplot as plt
+from inputFormat import *
 import pickle
 import argparse
 import time
 import os
 
 def save(learner):
-	print "saving network..."
+	print("saving network...")
 	save_name = args.data+"/learner.save"
 	learner.save(savefile = save_name)
 	
@@ -16,7 +16,7 @@ def save(learner):
 def snapshot(learner):
 	if not args.data:
 		return
-	print "saving network snapshot..."
+	print("saving network snapshot...")
 	index = 0
 	save_name = args.data+"/snapshot_"+str(index)+".save"
 	while os.path.exists(save_name):
@@ -28,19 +28,19 @@ def running_mean(x, N):
     cumsum = np.cumsum(np.insert(x, 0, 0)) 
     return (cumsum[N:] - cumsum[:-N]) / N 
 
-def show_plots():
-	plt.figure(0)
-	plt.plot(running_mean(costs,200))
-	plt.ylabel('cost')
-	plt.xlabel('episode')
-	plt.draw()
-	plt.pause(0.001)
-	plt.figure(1)
-	plt.plot(running_mean(values,200))
-	plt.ylabel('value')
-	plt.xlabel('episode')
-	plt.draw()
-	plt.pause(0.001)
+# def show_plots():
+# 	plt.figure(0)
+# 	plt.plot(running_mean(costs,200))
+# 	plt.ylabel('cost')
+# 	plt.xlabel('episode')
+# 	plt.draw()
+# 	plt.pause(0.001)
+# 	plt.figure(1)
+# 	plt.plot(running_mean(values,200))
+# 	plt.ylabel('value')
+# 	plt.xlabel('episode')
+# 	plt.draw()
+# 	plt.pause(0.001)
 
 def action_to_cell(action):
 	cell = np.unravel_index(action, (boardsize,boardsize))
@@ -60,7 +60,7 @@ save_time = 60
 snapshot_time = 240
 
 print("loading starting positions... ")
-datafile = open("data/scoredPositionsFull.npz", 'r')
+datafile = open("data/scoredPositionsFull.npz", 'rb')
 data = np.load(datafile)
 positions = data['positions']
 datafile.close()
@@ -71,6 +71,7 @@ if args.data and not os.path.exists(args.data):
 
 numEpisodes = 100000
 batch_size = 64
+boardsize = 13
 
 
 #if load parameter is passed load a network from a file
@@ -84,7 +85,7 @@ else:
 print("Running episodes...")
 last_save = time.clock()
 last_snapshot = time.clock()
-show_plots()
+#show_plots()
 try:
 	for i in range(numEpisodes):
 		num_step = 0
@@ -103,6 +104,8 @@ try:
 			action = Agent.exploration_policy(gameW if move_parity else gameB)
 			state1 = np.copy(gameW if move_parity else gameB)
 			move_cell = action_to_cell(action)
+			# print(action)
+			# print(state_string(gameW, boardsize))
 			play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
 			play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
 			if(not winner(gameW)==None):
@@ -115,7 +118,7 @@ try:
 			else:
 				state2 = flip_game(gameB if move_parity else gameW)
 			move_parity = not move_parity
-			Agent.update_memory(state1, action, state2, reward)
+			Agent.update_memory(state1, action, state2, terminal)
 			Agent.learn(batch_size = batch_size)
 			num_step += 1
 			if(time.clock()-last_save > 60*save_time):
@@ -129,7 +132,7 @@ try:
 
 except KeyboardInterrupt:
 	#save snapshot of network if we interrupt so we can pickup again later
-	save()
+	save(Agent)
 	exit(1)
 
-save()
+save(Agent)
