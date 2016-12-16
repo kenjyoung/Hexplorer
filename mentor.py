@@ -7,13 +7,18 @@ import pickle
 import argparse
 import os
 
-def save(learner):
+def save(learner, Pw_costs, Q_costs):
 	print("saving network...")
 	if(args.data):
 		save_name = args.data+"/learner.save"
+		data_name = args.data+"/data.save"
 	else:
 		save_name = "learner.save"
+		data_name = "data.save"
 	learner.save(savefile = save_name)
+	data = {"Pw_costs":Pw_costs, "Qsigma_costs":Qsigma_costs}
+	with open(data_name, 'wb') as f:
+		pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 parser = argparse.ArgumentParser()
@@ -30,6 +35,16 @@ datafile.close()
 
 if args.data and not os.path.exists(args.data):
 	os.makedirs(args.data)
+
+if args.data and os.path.exists(args.data+'/data.save'):
+	with open(args.data+'/data.save', 'rb') as f:
+		data = pickle.load(f)
+		Pw_costs = data['Pw_costs']
+		Qsigma_costs = data['Qsigma_costs']
+else:
+	Pw_costs = []
+	Qsigma_costs = []
+
 
 positions = positions.astype(theano.config.floatX)
 scores = scores.astype(theano.config.floatX)
@@ -52,6 +67,8 @@ print("Training model on mentor set...")
 indices = list(range(n_train))
 try:
 	for epoch in range(numEpochs):
+		Pw_cost_sum = 0
+		Qsigma_cost_sum = 0
 		print("epoch: ",epoch)
 		np.random.shuffle(indices)
 		for batch in range(numBatches):
@@ -59,16 +76,21 @@ try:
 			state_batch = positions[indices[batch*batch_size:(batch+1)*batch_size]]
 			Pw_batch = scores[indices[batch*batch_size:(batch+1)*batch_size]]
 			Qsigma_batch = np.ones(Pw_batch.shape)
-			Agent.mentor(state_batch, Pw_batch, Qsigma_batch)
+			Pw_cost, Qsigma_cost = Agent.mentor(state_batch, Pw_batch, Qsigma_batch)
+			Pw_cost_sum += Pw_cost
+			Qsigma_cost_sum += Qsigma_cost
 			run_time = time.clock()-t
 			iteration+=1
-			print("Time per position: ", run_time/(batch_size))
+			print("Time per position: ", run_time/(batch_size), " Pw Cost: ", Pw_cost, " Qsigma Cost: ", Qsigma_cost)
+		Pw_costs.append(Pw_cost_sum)
+		Qsigma_cost.append(Qsigma_cost_sum)
+
 		#save snapshot of network every epoch in case something goes wrong
-		save(Agent)
+		save(Agent, Pw_costs, Q_costs)
 except KeyboardInterrupt:
 	#save snapshot of network if we interrupt so we can pickup again later
-	save(Agent)
+	save(Agent, Pw_costs, Q_costs)
 	exit(1)
 
 print("done training!")
-save(Agent)
+save(Agent, Pw_costs, Q_costs)

@@ -192,7 +192,8 @@ class Learner:
         Pw_updates = lasagne.updates.rmsprop(Pw_loss, Pw_params, alpha, rho, epsilon)
         self._update_Pw = theano.function(
             [state_batch, action_batch, Pw_targets],
-            updates = Pw_updates
+            updates = Pw_updates,
+            outputs = Qsigma_loss
         )
 
         #Build Qsigma update function
@@ -201,15 +202,27 @@ class Learner:
         Qsigma_updates = lasagne.updates.rmsprop(Qsigma_loss, Qsigma_params, alpha, rho, epsilon)
         self._update_Qsigma = theano.function(
             [state_batch, action_batch, Qsigma_targets],
-            updates = Qsigma_updates
+            updates = Qsigma_updates,
+            outputs = Qsigma_loss
         )
+
+        #Build update function for both Pw and Qsigma
+        loss = Pw_loss + Qsigma_loss
+        params = Pw_params + Qsigma_params
+        updates = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
+        self._update = theano.function(
+            [state_batch, action_batch, Pw_targets, Qsigma_targets],
+            updates = updates,
+            outputs = [Pw_loss, Qsigma_loss]
+            )
 
         #Build Pw mentor function
         Pw_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(),mentor_Pws.flatten()))
         Pw_mentor_updates = lasagne.updates.rmsprop(Pw_mentor_loss, Pw_params, alpha, rho, epsilon)
         self._mentor_Pw = theano.function(
             [state_batch, mentor_Pws],
-            updates = Pw_mentor_updates
+            updates = Pw_mentor_updates,
+            outputs = Pw_mentor_loss
         )
 
         #Build Qsigma mentor function
@@ -217,7 +230,8 @@ class Learner:
         Qsigma_mentor_updates = lasagne.updates.rmsprop(Qsigma_mentor_loss, Qsigma_params, alpha, rho, epsilon)
         self._mentor_Qsigma = theano.function(
             [state_batch, mentor_Qsigmas],
-            updates = Qsigma_mentor_updates
+            updates = Qsigma_mentor_updates,
+            outputs = Qsigma_mentor_loss
         )
 
         #Build mentor function for both Pw and Qsigma
@@ -226,7 +240,8 @@ class Learner:
         updates = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
         self._mentor = theano.function(
             [state_batch, mentor_Pws, mentor_Qsigmas],
-            updates = updates
+            updates = updates,
+            outputs = [Pw_mentor_loss, Qsigma_mentor_loss]
         )
 
     def update_memory(self, state1, action, state2, terminal):
@@ -243,24 +258,20 @@ class Learner:
         #add a cap on the lowest possible value of lossing probability
         joint = np.maximum(joint,0.0001)
 
-        #Update Pw network
+        #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
-        print(Pw_targets)
-        self._update_Pw(states1, actions, Pw_targets)
-
-        #Update Qsigma network
         gamma = (joint[...,np.newaxis]/(1-Pw))**2
         Qsigma_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Qsigma_targets = Pw[np.arange(batch_size),actions]**2-joint**2+np.max(gamma*Qsigma)
-        self._update_Qsigma(states1, actions, Qsigma_targets)
+        return self._update(states1, actions, Pw_targets, Qsigma_targets)
 
     def mentor(self, states, Pws, Qsigmas):
         states = np.asarray(states, dtype=theano.config.floatX)
         Pws = np.asarray(Pws, dtype=theano.config.floatX)
         Qsigmas = np.asarray(Qsigmas, dtype=theano.config.floatX)
-        self._mentor(states, Pws, Qsigmas)
+        return self._mentor(states, Pws, Qsigmas)
 
     def exploration_policy(self, state):
         state = np.asarray(state, dtype=theano.config.floatX)
@@ -268,10 +279,10 @@ class Learner:
         joint = np.prod(1-Pw)
         #if we are quite certain this state is a win just play the best move
         if(joint < 0.0001):
-            return self.optimization_policy(state)
+            return self.optimization_policy(state), Pw, Qsigma
         gamma = (joint/(1-Pw))**2
         action = np.argmax(gamma*Qsigma)
-        return action
+        return action, Pw, Qsigma
 
     def optimization_policy(self, state):
         state = np.asarray(state, dtype=theano.config.floatX)
