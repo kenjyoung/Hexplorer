@@ -193,7 +193,7 @@ class Learner:
         self._update_Pw = theano.function(
             [state_batch, action_batch, Pw_targets],
             updates = Pw_updates,
-            outputs = Qsigma_loss
+            outputs = Pw_loss
         )
 
         #Build Qsigma update function

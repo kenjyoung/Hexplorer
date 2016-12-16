@@ -7,7 +7,7 @@ import pickle
 import argparse
 import os
 
-def save(learner, Pw_costs, Q_costs):
+def save(learner, Pw_costs, Qsigma_costs):
 	print("saving network...")
 	if(args.data):
 		save_name = args.data+"/learner.save"
@@ -26,7 +26,7 @@ parser.add_argument("--load", "-l", type=str, help="Specify a file with a prebui
 parser.add_argument("--data", "-d", type =str, help="Specify a directory to save/load data for this run.")
 args = parser.parse_args()
 
-print("loading data... ")
+print("Loading data... ")
 datafile = open("data/scoredPositionsFull.npz", 'rb')
 data = np.load(datafile)
 positions = data['positions']
@@ -55,10 +55,13 @@ iteration = 0
 batch_size = 64
 numBatches = n_train//batch_size
 
-#if load parameter is passed load a network from a file
+#if load parameter is passed or a saved learner is available in the data directory load a network from a file
 if args.load:
 	print("Loading agent...")
 	Agent = Learner(loadfile = args.load)
+elif args.data and os.path.exists(args.data+'/learner.save'):
+	print("Loading agent...")
+	Agent = Learner(loadfile = args.data+'/learner.save')
 else:
 	print("Building agent...")
 	Agent = Learner()
@@ -69,7 +72,7 @@ try:
 	for epoch in range(numEpochs):
 		Pw_cost_sum = 0
 		Qsigma_cost_sum = 0
-		print("epoch: ",epoch)
+		print("epoch: "+str(epoch))
 		np.random.shuffle(indices)
 		for batch in range(numBatches):
 			t = time.clock()
@@ -81,16 +84,16 @@ try:
 			Qsigma_cost_sum += Qsigma_cost
 			run_time = time.clock()-t
 			iteration+=1
-			print("Time per position: ", run_time/(batch_size), " Pw Cost: ", Pw_cost, " Qsigma Cost: ", Qsigma_cost)
+			print("Time per position: "+str(run_time/batch_size)+" Pw Cost: "+str(Pw_cost)+" Qsigma Cost: "+str(Qsigma_cost))
 		Pw_costs.append(Pw_cost_sum)
 		Qsigma_cost.append(Qsigma_cost_sum)
 
 		#save snapshot of network every epoch in case something goes wrong
-		save(Agent, Pw_costs, Q_costs)
+		save(Agent, Pw_costs, Qsigma_costs)
 except KeyboardInterrupt:
 	#save snapshot of network if we interrupt so we can pickup again later
-	save(Agent, Pw_costs, Q_costs)
+	save(Agent, Pw_costs, Qsigma_costs)
 	exit(1)
 
 print("done training!")
-save(Agent, Pw_costs, Q_costs)
+save(Agent, Pw_costs, Qsigma_costs)

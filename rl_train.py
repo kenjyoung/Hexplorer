@@ -6,7 +6,7 @@ import argparse
 import time
 import os
 
-def save(learner, Pw_vars, Qsigmas, Pw_costs, Q_costs):
+def save(learner, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs):
 	print("saving network...")
 	if(args.data):
 		save_name = args.data+"/learner.save"
@@ -48,7 +48,7 @@ save_time = 60
 #save snapshot of network to unique file every x minutes during training
 snapshot_time = 240
 
-print("loading starting positions... ")
+print("Loading starting positions... ")
 datafile = open("data/scoredPositionsFull.npz", 'rb')
 data = np.load(datafile)
 positions = data['positions']
@@ -127,23 +127,28 @@ try:
 				state2 = flip_game(gameB if move_parity else gameW)
 			move_parity = not move_parity
 			Agent.update_memory(state1, action, state2, terminal)
-			Pw_cost, Qsigma_cost = Agent.learn(batch_size = batch_size)
+			costs = Agent.learn(batch_size = batch_size)
+			if(costs is not None):
+				Pw_cost, Qsigma_cost = costs
+			else:
+				Pw_cost = 0
+				Qsigma_cost = 0
 
 			#update running sums for this episode
 			num_step += 1
-			Pw_var_sum += (1-Pw)*Pw
-			Qsigma_sum += Qsigma
+			Pw_var_sum += np.mean((1-Pw)*Pw)
+			Qsigma_sum += np.mean(Qsigma)
 			Qsigma_cost_sum += Qsigma_cost
 			Pw_cost_sum += Pw_cost
 
 			if(time.clock()-last_save > 60*save_time):
-				save(Agent, Pw_vars, Qsigmas, Pw_costs, Q_costs)
+				save(Agent, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs)
 				last_save = time.clock()
 			if(time.clock()-last_snapshot > 60*snapshot_time):
 				snapshot(Agent)
 				last_snapshot = time.clock()
 		run_time = time.clock() - t
-		print("Episode", i, "complete, Time per move: ", 0 if num_step == 0 else run_time/num_step)
+		print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step))
 
 		#log data for this episode
 		if(num_step!=0):
@@ -154,7 +159,7 @@ try:
 
 except KeyboardInterrupt:
 	#save snapshot of network if we interrupt so we can pickup again later
-	save(Agent, Pw_vars, Qsigmas, Pw_costs, Q_costs)
+	save(Agent, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs)
 	exit(1)
 
-save(Agent, Pw_vars, Qsigmas, Pw_costs, Q_costs)
+save(Agent, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs)
