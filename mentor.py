@@ -27,7 +27,7 @@ parser.add_argument("--data", "-d", type =str, help="Specify a directory to save
 args = parser.parse_args()
 
 print("Loading data... ")
-datafile = open("data/scoredPositionsFull.npz", 'rb')
+datafile = open("data/scoredPositionsSmall.npz", 'rb')
 data = np.load(datafile)
 positions = data['positions']
 scores = data['scores']
@@ -50,7 +50,7 @@ positions = positions.astype(theano.config.floatX)
 scores = scores.astype(theano.config.floatX)
 n_train = scores.shape[0]
 
-numEpochs = 100
+numEpochs = 10
 iteration = 0
 batch_size = 64
 numBatches = n_train//batch_size
@@ -86,7 +86,7 @@ try:
 			iteration+=1
 			print("Time per position: "+str(run_time/batch_size)+" Pw Cost: "+str(Pw_cost)+" Qsigma Cost: "+str(Qsigma_cost))
 		Pw_costs.append(Pw_cost_sum)
-		Qsigma_cost.append(Qsigma_cost_sum)
+		Qsigma_costs.append(Qsigma_cost_sum)
 
 		#save snapshot of network every epoch in case something goes wrong
 		save(Agent, Pw_costs, Qsigma_costs)

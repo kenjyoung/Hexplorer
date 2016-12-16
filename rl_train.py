@@ -112,8 +112,8 @@ try:
 			action, Pw, Qsigma = Agent.exploration_policy(gameW if move_parity else gameB)
 			state1 = np.copy(gameW if move_parity else gameB)
 			move_cell = action_to_cell(action)
-			# print(action)
-			# print(state_string(gameW, boardsize))
+			print(action)
+			print(state_string(gameW, boardsize))
 			play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
 			play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
 			if(not winner(gameW)==None):
@@ -148,7 +148,7 @@ try:
 				snapshot(Agent)
 				last_snapshot = time.clock()
 		run_time = time.clock() - t
-		print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step))
+		print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(Pw_cost)+" Qsigma Cost: "+str(Qsigma_cost))
 
 		#log data for this episode
 		if(num_step!=0):

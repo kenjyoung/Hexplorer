@@ -37,6 +37,10 @@ class Learner:
             self.mem = data["mem"]
 
         self.layers = []
+        num_filters = 128
+        num_shared = 6
+        num_Pw = 6
+        num_Qsigma = 6
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
@@ -48,7 +52,7 @@ class Learner:
         #Initialize bottom radius 3 layer
         l_1 = HexConvLayer(
             incoming = l_in, 
-            num_filters=128, 
+            num_filters=num_filters, 
             radius = 3, 
             nonlinearity = lasagne.nonlinearities.rectify, 
             W=lasagne.init.HeNormal(gain='relu'), 
@@ -58,11 +62,10 @@ class Learner:
         self.layers.append(l_1)
 
         #Initialize layers shared by Pw and Qsigma networks
-        num_shared = 1
         for i in range(num_shared-1):
             layer = HexConvLayer(
                 incoming = self.layers[-1], 
-                num_filters=128, 
+                num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
@@ -73,10 +76,9 @@ class Learner:
         final_shared_layer = self.layers[-1]
 
         #Initialize layers unique to Pw network
-        num_Pw = 2
         layer = HexConvLayer(
                 incoming = final_shared_layer, 
-                num_filters=128, 
+                num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
@@ -87,7 +89,7 @@ class Learner:
         for i in range(num_Pw-2):
             layer = HexConvLayer(
                 incoming = self.layers[-1], 
-                num_filters=128, 
+                num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
@@ -108,10 +110,9 @@ class Learner:
         Pw_output = lasagne.layers.get_output(Pw_output_layer)
 
         #Initialize layers unique to Qsigma network
-        num_Qsigma = 2
         layer = HexConvLayer(
                 incoming = final_shared_layer, 
-                num_filters=128, 
+                num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
@@ -122,7 +123,7 @@ class Learner:
         for i in range(num_Qsigma-2):
             layer = HexConvLayer(
                 incoming = self.layers[-1], 
-                num_filters=128, 
+                num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
@@ -274,6 +275,7 @@ class Learner:
         return self._mentor(states, Pws, Qsigmas)
 
     def exploration_policy(self, state):
+        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw, Qsigma = self._evaluate(state)
         joint = np.prod(1-Pw)
@@ -281,13 +283,20 @@ class Learner:
         if(joint < 0.0001):
             return self.optimization_policy(state), Pw, Qsigma
         gamma = (joint/(1-Pw))**2
-        action = np.argmax(gamma*Qsigma)
+        values = gamma*Qsigma
+        #never select played values
+        values[played]=-100
+        action = np.argmax(values)
         return action, Pw, Qsigma
 
     def optimization_policy(self, state):
+        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw = self._evaluate_Pw(state)
-        action = np.argmax(Pw)
+        values = Pw
+        #never select played values
+        values[played]=-100
+        action = np.argmax(values)
         return action
 
     def save(self, savefile = 'learner.save'):
