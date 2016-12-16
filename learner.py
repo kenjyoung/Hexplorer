@@ -240,11 +240,14 @@ class Learner:
 
         Pw, Qsigma = self._evaluate_multi(states2)
         joint = np.prod(1-Pw, axis=1)
+        #add a cap on the lowest possible value of lossing probability
+        joint = np.maximum(joint,0.0001)
 
         #Update Pw network
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
+        print(Pw_targets)
         self._update_Pw(states1, actions, Pw_targets)
 
         #Update Qsigma network
@@ -260,12 +263,11 @@ class Learner:
         self._mentor(states, Pws, Qsigmas)
 
     def exploration_policy(self, state):
-        epsilon =0.0001
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw, Qsigma = self._evaluate(state)
         joint = np.prod(1-Pw)
         #if we are quite certain this state is a win just play the best move
-        if(joint <0.000001):
+        if(joint < 0.0001):
             return self.optimization_policy(state)
         gamma = (joint/(1-Pw))**2
         action = np.argmax(gamma*Qsigma)
