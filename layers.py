@@ -3,7 +3,7 @@ from theano.tensor.nnet import conv
 import lasagne
 
 
-#TODO: debug this layer, make sure initialization makes sense
+#TODO: this should be thoroughly validated, I'm sure it has a high bud probability
 class HexConvLayer(lasagne.layers.Layer):
     def __init__(
         self, 

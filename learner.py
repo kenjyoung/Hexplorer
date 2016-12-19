@@ -285,7 +285,7 @@ class Learner:
         gamma = (joint/(1-Pw))**2
         values = gamma*Qsigma
         #never select played values
-        values[played]=-100
+        values[played]=-2
         action = np.argmax(values)
         return action, Pw, Qsigma
 
@@ -295,9 +295,30 @@ class Learner:
         Pw = self._evaluate_Pw(state)
         values = Pw
         #never select played values
-        values[played]=-100
+        values[played]=-2
         action = np.argmax(values)
         return action
+
+    def win_prob(self, state):
+        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
+        state = np.asarray(state, dtype=theano.config.floatX)
+        Pw = self._evaluate_Pw(state)
+        values = Pw
+        #never select played values
+        values[played]=-2
+        return values
+
+    def win_prob_and_exp(self, state):
+        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
+        state = np.asarray(state, dtype=theano.config.floatX)
+        Pw, Qsigma = self._evaluate_multi(state)
+        Pw_values = Pw
+        Qsigma_values = Qsigma
+        #never select played values
+        Pw_values[played]=-2
+        Qsigma_values[played]=-2
+        return Pw_values, Qsigma_values
+
 
     def save(self, savefile = 'learner.save'):
         params = lasagne.layers.get_all_param_values(self.layers)
