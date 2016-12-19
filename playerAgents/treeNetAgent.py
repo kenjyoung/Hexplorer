@@ -100,8 +100,12 @@ class treeNetAgent:
         	state = mirror_game(state)
         played = np.logical_or(state[white,padding:boardsize+padding,padding:boardsize+padding],\
         state[black,padding:boardsize+padding,padding:boardsize+padding]).flatten()
-        Pw, Qsigma = self.evaluator(state)
-        value = -np.max(scores[np.logical_not(played)])
+        Pws, Qsigmas = self.evaluator(state)
+        Pw = np.prod(1-Pws)
+        gamma = (joint/(1-Pw))**2
+        #don't include the gain from the current move since
+        #we are concerned with what we can gain from further search
+        Qsigmas = np.max((gamma*Qsigmas))
         for i in range(len(scores)):
         	if not played[i]:
         		if(toplay == white):
@@ -110,17 +114,18 @@ class treeNetAgent:
         			move = boardsize*(i%boardsize)+i//boardsize
         		children.append(node(Pw = Pw[i], Qsigma = Qsigma[i], move = move, parent = parent))
         parent.add_children(children)
-        return value
+        return Pw, Qsigma
 
 
     def search(self, time_budget = 1):
+        #TODO: complete backup phase and debug and/or rework everything else
     	startTime = time.time()
     	num_evals = 0
 
     	#do until we exceed our time budget
     	while(time.time() - startTime < time_budget):
     		node, state = self.select_node()
-    		value = self.evaluate(node, state)
+    		Pw, Qsigma = self.evaluate(node, state)
     		turn = state.turn()
     		self.backup(node, turn, value)
     		num_evals += 1
