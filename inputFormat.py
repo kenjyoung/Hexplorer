@@ -8,6 +8,7 @@ north = 4
 south = 5
 num_channels = 6
 padding = 2
+boardsize = 13
 neighbor_patterns = ((-1,0), (0,-1), (-1,1), (0,1), (1,0), (1,-1))
 
 def other(color):
@@ -25,7 +26,7 @@ def move(cell):
 def cell_m(cell):
 	return (cell[1],cell[0])
 
-def neighbors(cell, boardsize = 13):
+def neighbors(cell, boardsize = boardsize):
 	"""
 	Return list of neighbors of the passed cell.
 	"""
@@ -55,7 +56,7 @@ def flip_game(game):
 	m_game[west]  = np.rot90(game[east],2)
 	return m_game
 
-def new_game(boardsize = 13):
+def new_game(boardsize = boardsize):
 	input_size = boardsize+2*padding
 	input_shape = (num_channels,input_size,input_size)
 	game = np.zeros(input_shape, dtype=bool)
@@ -102,7 +103,7 @@ def play_cell(game, cell, color):
 	if(edge2_connection):
 		flood_fill(game, cell, color, edge2)
 
-def state_string(state, boardsize = 13):
+def state_string(state, boardsize = boardsize):
 	"""
 	Print an ascii representation of the input.
 	"""

@@ -156,7 +156,7 @@ class gtpinterface:
 				self.game.play(move)
 			self.agent.set_gamestate(self.game)
 		except ValueError:
-			print self.history
+			print(self.history)
 			return(False, "Undo failed!")
 		return (True, "")
 

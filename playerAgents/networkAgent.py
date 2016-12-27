@@ -6,11 +6,12 @@ from copy import copy, deepcopy
 import numpy as np
 from inputFormat import *
 from stateToInput import stateToInput
+from learner import Learner
 
 class networkAgent:
 	def __init__(self, state = gamestate(13)):
 		self.state = copy(state)
-		network = Learner(loadfile = os.path.realpath(__file__)+"/learner.save")
+		network = Learner(loadfile = os.path.dirname(os.path.realpath(__file__))+"/learner.save")
 		self.evaluator = network.win_prob
 
 	def move(self, move):
@@ -27,7 +28,7 @@ class networkAgent:
 		out_str = "gogui-gfx:\ndfpn\nVAR\nLABEL "
 		for i in range(self.state.size*self.state.size):
 			cell = np.unravel_index(i, (self.state.size,self.state.size))
-			raw_cell = (cell[0]+(boardsize-self.state.size+1)/2, cell[1]+(boardsize-self.state.size+1)/2)
+			raw_cell = (cell[0]+(boardsize-self.state.size+1)//2, cell[1]+(boardsize-self.state.size+1)//2)
 			toplay = white if self.state.toplay == self.state.PLAYERS["white"] else black
 			if(toplay == black):
 				cell = cell_m(cell)
@@ -59,7 +60,7 @@ class networkAgent:
 		"""
 		move = np.unravel_index(self.scores.argmax(), (boardsize,boardsize))
 		#correct move for smaller boardsizes
-		move = (move[0]-(boardsize-self.state.size+1)/2, move[1]-(boardsize-self.state.size+1)/2)
+		move = (move[0]-(boardsize-self.state.size+1)//2, move[1]-(boardsize-self.state.size+1)//2)
 		#flip returned move if black to play to get move in actual game
 		toplay = white if self.state.toplay == self.state.PLAYERS["white"] else black
 		if(toplay == black):
