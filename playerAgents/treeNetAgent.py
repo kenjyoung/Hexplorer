@@ -126,8 +126,7 @@ class treeNetAgent:
     	while(time.time() - startTime < time_budget):
     		node, state = self.select_node()
     		Pw, Qsigma = self.evaluate(node, state)
-    		turn = state.turn()
-    		self.backup(node, turn, value)
+    		self.backup(node, value)
     		num_evals += 1
     	sys.stderr.write("Ran "+str(num_evals)+ " evaluations in " +\
     		str(time.time() - startTime)+" sec\n")
@@ -150,14 +149,14 @@ class treeNetAgent:
             state.play(move)
     	return (node, state)
 
-    def backup(self, node, turn, value):
+    def backup(self, node, value):
     	"""
     	Update the node statistics on the path from the passed node to root to reflect
     	the outcome of a network evaluation.
     	"""
     	while node!=None:
     		node.N += 1
-    		node.Q +=value
+    		node.Q += value
     		value = -value
     		node = node.parent
 
