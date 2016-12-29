@@ -27,7 +27,7 @@ parser.add_argument("--data", "-d", type =str, help="Specify a directory to save
 args = parser.parse_args()
 
 print("Loading data... ")
-datafile = open("data/scoredPositionsSmall.npz", 'rb')
+datafile = open("data/scoredPositionsFull.npz", 'rb')
 data = np.load(datafile)
 positions = data['positions']
 scores = data['scores']
