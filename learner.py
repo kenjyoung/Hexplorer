@@ -255,15 +255,15 @@ class Learner:
         states1, actions, states2, terminals = self.mem.sample_batch(batch_size)
 
         Pw, Qsigma = self._evaluate_multi(states2)
-        joint = np.prod(1-Pw, axis=1)
-        #add a cap on the lowest possible value of lossing probability
-        joint = np.maximum(joint,0.0001)
+        #add a cap on the lowest possible value of losing probability
+        Pl =  np.maximum(1-Pw,0.00001)
+        joint = np.prod(Pl, axis=1)
 
         #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
-        gamma = (joint[...,np.newaxis]/(1-Pw))**2
+        gamma = (joint[...,np.newaxis]/Pl)**2
         Qsigma_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Qsigma_targets = Pw[np.arange(batch_size),actions]**2-joint**2+np.max(gamma*Qsigma)
         return self._update(states1, actions, Pw_targets, Qsigma_targets)
@@ -278,11 +278,10 @@ class Learner:
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw, Qsigma = self._evaluate(state)
-        joint = np.prod(1-Pw)
-        #if we are quite certain this state is a win just play the best move
-        if(joint < 0.0001):
-            return self.optimization_policy(state), Pw, Qsigma
-        gamma = (joint/(1-Pw))**2
+        #add a cap on the lowest possible value of losing probability
+        Pl =  np.maximum(1-Pw,0.00001)
+        joint = np.prod(Pl)
+        gamma = (joint/Pl)**2
         values = gamma*Qsigma
         #never select played values
         values[played]=-2
