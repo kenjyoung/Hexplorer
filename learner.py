@@ -274,13 +274,21 @@ class Learner:
         Qsigmas = np.asarray(Qsigmas, dtype=theano.config.floatX)
         return self._mentor(states, Pws, Qsigmas)
 
-    def exploration_policy(self, state):
+    def exploration_policy(self, state, win_cutoff=0.0001):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw, Qsigma = self._evaluate(state)
         #add a cap on the lowest possible value of losing probability
         Pl =  np.maximum(1-Pw,0.00001)
         joint = np.prod(Pl)
+        #if losing probability is sufficiently small just play the best move
+        if joint < win_cutoff:
+        	values = Pw
+	        #never select played values
+	        values[played]=-2
+	        action = np.argmax(values)
+	        return action, Pw, Qsigma
+
         gamma = (joint/Pl)**2
         values = gamma*Qsigma
         #never select played values
