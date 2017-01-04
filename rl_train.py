@@ -112,8 +112,8 @@ try:
 			action, Pw, Qsigma = Agent.exploration_policy(gameW if move_parity else gameB)
 			state1 = np.copy(gameW if move_parity else gameB)
 			move_cell = action_to_cell(action)
-			print(action)
-			print(state_string(gameW, boardsize))
+			# print(action)
+			# print(state_string(gameW, boardsize))
 			play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
 			play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
 			if(not winner(gameW)==None):

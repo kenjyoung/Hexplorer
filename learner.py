@@ -311,19 +311,14 @@ class Learner:
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw = self._evaluate_Pw(state)
         values = Pw
-        #never select played values
-        values[played]=-2
         return values
 
     def win_prob_and_exp(self, state):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
-        Pw, Qsigma = self._evaluate_multi(state)
+        Pw, Qsigma = self._evaluate(state)
         Pw_values = Pw
         Qsigma_values = Qsigma
-        #never select played values
-        Pw_values[played]=-2
-        Qsigma_values[played]=-2
         return Pw_values, Qsigma_values
 
 
