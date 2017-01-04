@@ -153,7 +153,7 @@ try:
 		#log data for this episode
 		if(num_step!=0):
 			Pw_vars.append(Pw_var_sum/num_step)
-			Qsigmas.append(Qsigma_cost_sum/num_step)
+			Qsigmas.append(Qsigma_sum/num_step)
 			Qsigma_costs.append(Qsigma_cost_sum/num_step)
 			Pw_costs.append(Pw_cost_sum/num_step)
 

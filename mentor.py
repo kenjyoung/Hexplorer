@@ -85,8 +85,8 @@ try:
 			run_time = time.clock()-t
 			iteration+=1
 			print("Time per position: "+str(run_time/batch_size)+" Pw Cost: "+str(Pw_cost)+" Qsigma Cost: "+str(Qsigma_cost))
-		Pw_costs.append(Pw_cost_sum)
-		Qsigma_costs.append(Qsigma_cost_sum)
+		Pw_costs.append(Pw_cost_sum/numBatches)
+		Qsigma_costs.append(Qsigma_cost_sum/numBatches)
 
 		#save snapshot of network every epoch in case something goes wrong
 		save(Agent, Pw_costs, Qsigma_costs)

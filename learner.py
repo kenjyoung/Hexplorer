@@ -215,7 +215,7 @@ class Learner:
             [state_batch, action_batch, Pw_targets, Qsigma_targets],
             updates = updates,
             outputs = [Pw_loss, Qsigma_loss]
-            )
+        )
 
         #Build Pw mentor function
         Pw_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(),mentor_Pws.flatten()))
@@ -283,7 +283,7 @@ class Learner:
         joint = np.prod(Pl)
         #if losing probability is sufficiently small just play the best move
         if joint < win_cutoff:
-        	values = Pw
+        	values = np.copy(Pw)
 	        #never select played values
 	        values[played]=-2
 	        action = np.argmax(values)
