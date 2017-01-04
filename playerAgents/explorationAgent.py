@@ -54,10 +54,6 @@ class explorationAgent:
 		Pl =  np.maximum(1-Pw,0.00001)
 		joint = np.prod(Pl)
 		gamma = (joint/Pl)**2
-		print(Pl)
-		print(joint)
-		print(gamma)
-		print(Qsigma)
 		self.scores = gamma*Qsigma
 		#set value of played cells impossibly low so they are never picked
 		self.scores[played] = -2
