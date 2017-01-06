@@ -254,9 +254,10 @@ class Learner:
             return
         states1, actions, states2, terminals = self.mem.sample_batch(batch_size)
 
-        Pw, Qsigma = self._evaluate_multi(states2)
+        Pw2, Qsigma2 = self._evaluate_multi(states2)
+        Pw1 = self._evaluate_Pws(states1)
         #add a cap on the lowest possible value of losing probability
-        Pl =  np.maximum(1-Pw,0.00001)
+        Pl =  np.maximum(1-Pw2,0.00001)
         joint = np.prod(Pl, axis=1)
 
         #Update networks
@@ -264,7 +265,7 @@ class Learner:
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
         gamma = (joint[...,np.newaxis]/Pl)**2
-        Qsigma_targets = joint**2 - Pw[np.arange(batch_size),actions]**2 + np.max(gamma*Qsigma, axis=1)
+        Qsigma_targets = joint**2 - Pw1[np.arange(batch_size),actions]**2 + np.max(gamma*Qsigma2, axis=1)
         return self._update(states1, actions, Pw_targets, Qsigma_targets)
 
     def mentor(self, states, Pws, Qsigmas):
