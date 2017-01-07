@@ -265,7 +265,9 @@ class Learner:
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
         gamma = (joint[...,np.newaxis]/Pl)**2
-        Qsigma_targets = joint**2 - Pw1[np.arange(batch_size),actions]**2 + np.max(gamma*Qsigma2, axis=1)
+        Qsigma_targets = np.zeros(terminals.size).astype(theano.config.floatX)
+        Qsigma_targets[terminals==0] = joint[terminals==0]**2 - Pw1[np.arange(batch_size),actions][terminals==0]**2 + np.max(gamma*Qsigma2, axis=1)[terminals==0]
+        Qsigma_targets[terminals==1] = 1 - Pw1[np.arange(batch_size),actions][terminals==1]**2
         return self._update(states1, actions, Pw_targets, Qsigma_targets)
 
     def mentor(self, states, Pws, Qsigmas):
