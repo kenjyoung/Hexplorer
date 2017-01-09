@@ -4,9 +4,16 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../")
 from gamestate import gamestate
 from copy import copy, deepcopy
 import numpy as np
+import random as pr
 from inputFormat import *
 from stateToInput import stateToInput
 from learner import Learner
+
+def rargmax(vector):
+    """ Argmax that chooses randomly among eligible maximum indices. """
+    m = np.amax(vector)
+    indices = np.nonzero(vector == m)[0]
+    return pr.choice(indices)
 
 class networkAgent:
 	def __init__(self, state = gamestate(13)):
@@ -58,7 +65,7 @@ class networkAgent:
 		"""
 		Return the best move according to the current tree.
 		"""
-		move = np.unravel_index(self.scores.argmax(), (boardsize,boardsize))
+		move = np.unravel_index(rargmax(self.scores), (boardsize,boardsize))
 		#correct move for smaller boardsizes
 		move = (move[0]-(boardsize-self.state.size+1)//2, move[1]-(boardsize-self.state.size+1)//2)
 		#flip returned move if black to play to get move in actual game

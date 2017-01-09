@@ -1,11 +1,18 @@
 import theano
 from theano import tensor as T
 import numpy as np
+import random as pr
 import lasagne
 from replay_memory import replay_memory
 from layers import HexConvLayer
 from inputFormat import *
 import pickle
+
+def rargmax(vector):
+    """ Argmax that chooses randomly among eligible maximum indices. """
+    m = np.amax(vector)
+    indices = np.nonzero(vector == m)[0]
+    return pr.choice(indices)
 
 #TODO: Debug, figure out how to save and load rms_prop state along with any other needed info
 class Learner:
@@ -288,14 +295,14 @@ class Learner:
         	values = np.copy(Pw)
 	        #never select played values
 	        values[played]=-2
-	        action = np.argmax(values)
+	        action = rargmax(values)
 	        return action, Pw, Qsigma
 
         gamma = (joint/Pl)**2
         values = gamma*Qsigma
         #never select played values
         values[played]=-2
-        action = np.argmax(values)
+        action = rargmax(values)
         return action, Pw, Qsigma
 
     def optimization_policy(self, state):
@@ -305,7 +312,7 @@ class Learner:
         values = Pw
         #never select played values
         values[played]=-2
-        action = np.argmax(values)
+        action = rargmax(values)
         return action
 
     def win_prob(self, state):
