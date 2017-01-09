@@ -111,6 +111,7 @@ try:
 		while(winner(gameW)==None):
 			action, Pw, Qsigma = Agent.exploration_policy(gameW if move_parity else gameB)
 			state1 = np.copy(gameW if move_parity else gameB)
+			played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
 			move_cell = action_to_cell(action)
 			# print(action)
 			# print(state_string(gameW, boardsize))
@@ -136,8 +137,8 @@ try:
 
 			#update running sums for this episode
 			num_step += 1
-			Pw_var_sum += np.mean((1-Pw)*Pw)
-			Qsigma_sum += np.mean(Qsigma)
+			Pw_var_sum += np.mean(((1-Pw)*Pw)[np.logical_not(played)])
+			Qsigma_sum += np.mean(Qsigma[np.logical_not(played)])
 			Qsigma_cost_sum += Qsigma_cost
 			Pw_cost_sum += Pw_cost
 
