@@ -1,0 +1,1 @@
+-Prehaps it would be more stable if you compute Pw for state along with conditional Pw for each move, that way you can simply back up state Pw
