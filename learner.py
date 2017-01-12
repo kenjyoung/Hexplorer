@@ -104,7 +104,7 @@ class Learner:
                 padding = 1,
             )
             self.layers.append(layer)
-        Pw_output_layer = HexConvLayer(
+        conditional_Pw_output_layer = HexConvLayer(
                 incoming = self.layers[-1], 
                 num_filters=1, 
                 radius = 2, 
@@ -113,8 +113,18 @@ class Learner:
                 b=lasagne.init.Constant(0),
                 padding = 0,
             )
+        state_Pw_output_layer = lasagne.layers.DenseLayer(
+                incoming = self.layers[-1],
+                num_units = 1,
+                nonlinearity = lasagne.nonlinearities.sigmoid, 
+                W=lasagne.init.HeNormal(gain='relu'), 
+                b=lasagne.init.Constant(0)
+            )
         self.layers.append(Pw_output_layer)
-        Pw_output = lasagne.layers.get_output(Pw_output_layer)
+        self.layers.append(Pw_state_output_layer)
+        conditional_Pw_output = lasagne.layers.get_output(Pw_action_output_layer)
+        state_Pw_output = lasagne.layers.get_output(Pw_state_output_layer)
+        Pw_output = conditional_Pw_output*state_Pw_output
 
         #Initialize layers unique to Qsigma network
         layer = HexConvLayer(
@@ -162,15 +172,24 @@ class Learner:
         played = 1-(1-state_batch[:,white,padding:-padding,padding:-padding])*(1-state_batch[:,black,padding:-padding,padding:-padding])
 
         #Build Pw evaluate functions
-        self._evaluate_Pw = theano.function(
+        self._evaluate_action_Pw = theano.function(
             [state],
             givens = {state_batch : state.dimshuffle('x',0,1,2)},
             outputs = (Pw_output*(1-played)).flatten()
         )
-        self._evaluate_Pws = theano.function(
+        self._evaluate_action_Pws = theano.function(
             [state_batch],
             outputs = (Pw_output*(1-played)).flatten(2)
         )
+        self._evaluate_state_Pw = theano.function(
+            [state],
+            givens = {state_batch : state.dimshuffle('x',0,1,2)},
+            outputs = Pw_state_output
+        )
+        self._evaluate_state_Pws = theano.function(
+            [state_batch],
+            outputs = Pw_state_output
+            )
 
         #Build Qsigma evaluate functions
         self._evaluate_Qsigma = theano.function(
@@ -187,11 +206,11 @@ class Learner:
         self._evaluate = theano.function(
             [state],
             givens = {state_batch : state.dimshuffle('x',0,1,2)},
-            outputs = [(Pw_output*(1-played)).flatten(), (Qsigma_output*(1-played)).flatten()]
+            outputs = [Pw_state_output, (Pw_output*(1-played)).flatten(), (Qsigma_output*(1-played)).flatten()]
         )
         self._evaluate_multi = theano.function(
             [state_batch],
-            outputs = [(Pw_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2), (Qsigma_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2)]
+            outputs = [Pw_state_output, (Pw_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2), (Qsigma_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2)]
         )
 
         #Build Pw update function
@@ -261,10 +280,10 @@ class Learner:
             return
         states1, actions, states2, terminals = self.mem.sample_batch(batch_size)
 
-        Pw2, Qsigma2 = self._evaluate_multi(states2)
+        Pw_state2, Pw_actions2, Qsigma2 = self._evaluate_multi(states2)
         Pw1 = self._evaluate_Pws(states1)
         #add a cap on the lowest possible value of losing probability
-        Pl =  np.maximum(1-Pw2,0.00001)
+        Pl =  np.maximum(1-Pw_actions2,0.00001)
         joint = np.prod(Pl, axis=1)
 
         #Update networks
@@ -288,7 +307,7 @@ class Learner:
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw, Qsigma = self._evaluate(state)
         #add a cap on the lowest possible value of losing probability
-        Pl =  np.maximum(1-Pw,0.00001)
+        Pl =  np.maximum(1-Pw, 0.00001)
         joint = np.prod(Pl)
         #if losing probability is sufficiently small just play the best move
         if joint < win_cutoff:
