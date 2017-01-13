@@ -45,9 +45,9 @@ class Learner:
 
         self.layers = []
         num_filters = 128
-        num_shared = 6
-        num_Pw = 6
-        num_Qsigma = 6
+        num_shared = 3
+        num_Pw = 3
+        num_Qsigma = 3
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
