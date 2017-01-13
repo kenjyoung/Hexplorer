@@ -48,12 +48,12 @@ save_time = 60
 #save snapshot of network to unique file every x minutes during training
 snapshot_time = 240
 
-print("Loading starting positions... ")
-datafile = open("data/scoredPositionsFull.npz", 'rb')
-data = np.load(datafile)
-positions = data['positions']
-datafile.close()
-numPositions = len(positions)
+# print("Loading starting positions... ")
+# datafile = open("data/scoredPositionsFull.npz", 'rb')
+# data = np.load(datafile)
+# positions = data['positions']
+# datafile.close()
+# numPositions = len(positions)
 
 if args.data and not os.path.exists(args.data):
 	os.makedirs(args.data)
@@ -73,7 +73,7 @@ else:
 
 numEpisodes = 100000
 batch_size = 64
-boardsize = 13
+boardsize = 5
 
 
 #if load parameter is passed or a saved learner is available in the data directory load a network from a file
@@ -97,15 +97,13 @@ try:
 		Qsigma_cost_sum = 0
 		Qsigma_sum = 0
 		Pw_var_sum = 0
-		#randomly choose who is to move from each position to increase variability in dataset
-		move_parity = np.random.choice([True,False])
-		#randomly choose starting position from database
-		index = np.random.randint(numPositions)
-		#randomly flip states to capture symmetry
-		if(np.random.choice([True,False])):
-			gameW = np.copy(positions[index])
-		else:
-			gameW = flip_game(positions[index])
+		# #randomly choose who is to move from each position to increase variability in dataset
+		# move_parity = np.random.choice([True,False])
+		# #randomly choose starting position from database
+		# index = np.random.randint(numPositions)
+		
+		#start from open 5x5 board each time
+		gameW = new_game(5)
 		gameB = mirror_game(gameW)
 		t = time.clock()
 		while(winner(gameW)==None):
