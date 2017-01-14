@@ -103,7 +103,11 @@ try:
 		# index = np.random.randint(numPositions)
 		
 		#start from open 5x5 board each time
+		move_parity = np.random.choice([True,False])
 		gameW = new_game(5)
+		action = np.random.randint(0,25)
+		move_cell = action_to_cell(action)
+		gameW.play_cell()
 		gameB = mirror_game(gameW)
 		t = time.clock()
 		while(winner(gameW)==None):
