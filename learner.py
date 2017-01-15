@@ -227,9 +227,9 @@ class Learner:
         loss = Pw_loss + Qsigma_loss
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
-            updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(1))
+            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(1))
         else:
-            updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
+            updates, accu = rmsprop(loss, params, alpha, rho, epsilon)
             self.opt_state.append(accu)
 
         self._update = theano.function(
@@ -245,9 +245,9 @@ class Learner:
         loss = Pw_mentor_loss + Qsigma_mentor_loss
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
-            updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(1))
+            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(1))
         else:
-            updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
+            updates, accu = rmsprop(loss, params, alpha, rho, epsilon)
             self.opt_state.append(accu)
 
         self._mentor = theano.function(
