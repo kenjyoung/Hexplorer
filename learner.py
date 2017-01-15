@@ -24,8 +24,8 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6, acc
     for param, grad in zip(params, grads):
         value = param.get_value(borrow=True)
         if accu is None:
-	        accu = theano.shared(np.zeros(value.shape, dtype=value.dtype),
-	                             broadcastable=param.broadcastable)
+            accu = theano.shared(np.zeros(value.shape, dtype=value.dtype),
+                                 broadcastable=param.broadcastable)
         accu_new = rho * accu + (one - rho) * grad ** 2
         updates[accu] = accu_new
         updates[param] = param - (learning_rate * grad /
@@ -61,10 +61,10 @@ class Learner:
             params = data["params"]
             self.opt_state = data["opt"]
             self.mem = data["mem"]
-     	else:
-     		params = None
-     		self.opt_state = []
-     		self.mem = replay_memory(mem_size, input_shape)
+        else:
+            params = None
+            self.opt_state = []
+            self.mem = replay_memory(mem_size, input_shape)
 
         self.layers = []
         num_filters = 128
@@ -227,10 +227,10 @@ class Learner:
         loss = Pw_loss + Qsigma_loss
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
-        	updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon, opt_state.pop(1))
+            updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(1))
         else:
-        	updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
-        	opt_state.append(accu)
+            updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
+            self.opt_state.append(accu)
 
         self._update = theano.function(
             [state_batch, action_batch, Pw_targets, Qsigma_targets],
@@ -245,10 +245,10 @@ class Learner:
         loss = Pw_mentor_loss + Qsigma_mentor_loss
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
-        	updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon, opt_state.pop(1))
+            updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(1))
         else:
-        	updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
-        	opt_state.append(accu)
+            updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
+            self.opt_state.append(accu)
 
         self._mentor = theano.function(
             [state_batch, mentor_Pws, mentor_Qsigmas],
