@@ -71,7 +71,7 @@ else:
 	Qsigmas = []
 	Pw_vars = []
 
-numEpisodes = 100000
+numEpisodes = 50000
 batch_size = 64
 boardsize = 5
 
@@ -107,7 +107,7 @@ try:
 		gameW = new_game(5)
 		action = np.random.randint(0,25)
 		move_cell = action_to_cell(action)
-		gameW.play_cell()
+		play_cell(gameW, move_cell, white if move_parity else black)
 		gameB = mirror_game(gameW)
 		t = time.clock()
 		while(winner(gameW)==None):
@@ -115,8 +115,7 @@ try:
 			state1 = np.copy(gameW if move_parity else gameB)
 			played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
 			move_cell = action_to_cell(action)
-			# print(action)
-			# print(state_string(gameW, boardsize))
+			#print(state_string(gameW, boardsize))
 			play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
 			play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
 			if(not winner(gameW)==None):
