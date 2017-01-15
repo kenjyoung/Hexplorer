@@ -14,6 +14,25 @@ def rargmax(vector):
     indices = np.nonzero(vector == m)[0]
     return pr.choice(indices)
 
+def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6, accu = None):
+    grads = get_or_compute_grads(loss_or_grads, params)
+    updates = OrderedDict()
+
+    # Using theano constant to prevent upcasting of float32
+    one = T.constant(1)
+
+    for param, grad in zip(params, grads):
+        value = param.get_value(borrow=True)
+        if accu is None:
+	        accu = theano.shared(np.zeros(value.shape, dtype=value.dtype),
+	                             broadcastable=param.broadcastable)
+        accu_new = rho * accu + (one - rho) * grad ** 2
+        updates[accu] = accu_new
+        updates[param] = param - (learning_rate * grad /
+                                  T.sqrt(accu_new + epsilon))
+
+    return updates, accu
+
 #TODO: Debug, figure out how to save and load rms_prop state along with any other needed info
 class Learner:
     def __init__(self, 
@@ -25,7 +44,6 @@ class Learner:
         boardsize = 5):
         input_size = boardsize+2*padding
         input_shape = (num_channels,input_size,input_size)
-        self.mem = replay_memory(mem_size, input_shape)
 
         #Create Input Variables
         state = T.tensor3('state')
@@ -41,7 +59,12 @@ class Learner:
             with open(loadfile, 'rb') as f:
                 data = pickle.load(f)
             params = data["params"]
+            self.opt_state = data["opt"]
             self.mem = data["mem"]
+     	else:
+     		params = None
+     		self.opt_state = []
+     		self.mem = replay_memory(mem_size, input_shape)
 
         self.layers = []
         num_filters = 128
@@ -61,7 +84,7 @@ class Learner:
             incoming = l_in, 
             num_filters=num_filters, 
             radius = 3, 
-            nonlinearity = lasagne.nonlinearities.rectify, 
+            nonlinearity = lasagne.nonlinearities.leaky_rectify, 
             W=lasagne.init.HeNormal(gain='relu'), 
             b=lasagne.init.Constant(0),
             padding = 1,
@@ -74,7 +97,7 @@ class Learner:
                 incoming = self.layers[-1], 
                 num_filters=num_filters, 
                 radius = 2, 
-                nonlinearity = lasagne.nonlinearities.rectify, 
+                nonlinearity = lasagne.nonlinearities.leaky_rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
                 padding = 1,
@@ -87,7 +110,7 @@ class Learner:
                 incoming = final_shared_layer, 
                 num_filters=num_filters, 
                 radius = 2, 
-                nonlinearity = lasagne.nonlinearities.rectify, 
+                nonlinearity = lasagne.nonlinearities.leaky_rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
                 padding = 1,
@@ -98,7 +121,7 @@ class Learner:
                 incoming = self.layers[-1], 
                 num_filters=num_filters, 
                 radius = 2, 
-                nonlinearity = lasagne.nonlinearities.rectify, 
+                nonlinearity = lasagne.nonlinearities.leaky_rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
                 padding = 1,
@@ -121,7 +144,7 @@ class Learner:
                 incoming = final_shared_layer, 
                 num_filters=num_filters, 
                 radius = 2, 
-                nonlinearity = lasagne.nonlinearities.rectify, 
+                nonlinearity = lasagne.nonlinearities.leaky_rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
                 padding = 1,
@@ -132,7 +155,7 @@ class Learner:
                 incoming = self.layers[-1], 
                 num_filters=num_filters, 
                 radius = 2, 
-                nonlinearity = lasagne.nonlinearities.rectify, 
+                nonlinearity = lasagne.nonlinearities.leaky_rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
                 padding = 1,
@@ -151,7 +174,7 @@ class Learner:
         Qsigma_output = lasagne.layers.get_output(Qsigma_output_layer)
 
         #If a loadfile is given, use saved parameter values
-        if(loadfile != None):
+        if(loadfile is not None):
             lasagne.layers.set_all_param_values(self.layers, params)
 
         #Build functions
@@ -194,58 +217,39 @@ class Learner:
             outputs = [(Pw_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2), (Qsigma_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2)]
         )
 
-        #Build Pw update function
+        #Build update function for both Pw and Qsigma
         Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch], Pw_targets), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
-        Pw_updates = lasagne.updates.rmsprop(Pw_loss, Pw_params, alpha, rho, epsilon)
-        self._update_Pw = theano.function(
-            [state_batch, action_batch, Pw_targets],
-            updates = Pw_updates,
-            outputs = Pw_loss
-        )
 
-        #Build Qsigma update function
         Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(2)[T.arange(Qsigma_targets.shape[0]),action_batch], Qsigma_targets), mode='mean')
         Qsigma_params = lasagne.layers.get_all_params(Qsigma_output_layer)
-        Qsigma_updates = lasagne.updates.rmsprop(Qsigma_loss, Qsigma_params, alpha, rho, epsilon)
-        self._update_Qsigma = theano.function(
-            [state_batch, action_batch, Qsigma_targets],
-            updates = Qsigma_updates,
-            outputs = Qsigma_loss
-        )
 
-        #Build update function for both Pw and Qsigma
         loss = Pw_loss + Qsigma_loss
         params = Pw_params + Qsigma_params
-        updates = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
+        if(loadfile is not None):
+        	updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon, opt_state.pop(1))
+        else:
+        	updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
+        	opt_state.append(accu)
+
         self._update = theano.function(
             [state_batch, action_batch, Pw_targets, Qsigma_targets],
             updates = updates,
             outputs = [Pw_loss, Qsigma_loss]
         )
 
-        #Build Pw mentor function
-        Pw_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(),mentor_Pws.flatten()))
-        Pw_mentor_updates = lasagne.updates.rmsprop(Pw_mentor_loss, Pw_params, alpha, rho, epsilon)
-        self._mentor_Pw = theano.function(
-            [state_batch, mentor_Pws],
-            updates = Pw_mentor_updates,
-            outputs = Pw_mentor_loss
-        )
-
-        #Build Qsigma mentor function
-        Qsigma_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(),mentor_Qsigmas.flatten()))
-        Qsigma_mentor_updates = lasagne.updates.rmsprop(Qsigma_mentor_loss, Qsigma_params, alpha, rho, epsilon)
-        self._mentor_Qsigma = theano.function(
-            [state_batch, mentor_Qsigmas],
-            updates = Qsigma_mentor_updates,
-            outputs = Qsigma_mentor_loss
-        )
-
         #Build mentor function for both Pw and Qsigma
+        Pw_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(),mentor_Pws.flatten()))
+        Qsigma_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(),mentor_Qsigmas.flatten()))
+
         loss = Pw_mentor_loss + Qsigma_mentor_loss
         params = Pw_params + Qsigma_params
-        updates = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
+        if(loadfile is not None):
+        	updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon, opt_state.pop(1))
+        else:
+        	updates, accu = lasagne.updates.rmsprop(loss, params, alpha, rho, epsilon)
+        	opt_state.append(accu)
+
         self._mentor = theano.function(
             [state_batch, mentor_Pws, mentor_Qsigmas],
             updates = updates,
@@ -287,16 +291,22 @@ class Learner:
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw, Qsigma = self._evaluate(state)
+
+        #epsilon greedy
+        if np.random.rand()<0.1:
+            action = np.random.choice(np.where(played==0)[0])
+            return action, Pw, Qsigma
+
         #add a cap on the lowest possible value of losing probability
         Pl =  np.maximum(1-Pw,0.00001)
         joint = np.prod(Pl)
         #if losing probability is sufficiently small just play the best move
         if joint < win_cutoff:
-        	values = np.copy(Pw)
-	        #never select played values
-	        values[played]=-2
-	        action = rargmax(values)
-	        return action, Pw, Qsigma
+            values = np.copy(Pw)
+            #never select played values
+            values[played]=-2
+            action = rargmax(values)
+            return action, Pw, Qsigma
 
         gamma = (joint/Pl)**2
         values = gamma*Qsigma
@@ -333,6 +343,6 @@ class Learner:
 
     def save(self, savefile = 'learner.save'):
         params = lasagne.layers.get_all_param_values(self.layers)
-        data = {'params':params, 'mem':self.mem}
+        data = {'params':params, 'mem':self.mem, 'opt':self.opt_state}
         with open(savefile, 'wb') as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
