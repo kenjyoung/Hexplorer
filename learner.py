@@ -7,6 +7,7 @@ from replay_memory import replay_memory
 from layers import HexConvLayer
 from inputFormat import *
 import pickle
+from collections import OrderedDict
 
 def rargmax(vector):
     """ Argmax that chooses randomly among eligible maximum indices. """
@@ -14,24 +15,49 @@ def rargmax(vector):
     indices = np.nonzero(vector == m)[0]
     return pr.choice(indices)
 
-def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6, accu = None):
+def get_or_compute_grads(loss_or_grads, params):
+    """
+    Helper function returning a list of gradients.
+    """
+    if any(not isinstance(p, theano.compile.SharedVariable) for p in params):
+        raise ValueError("params must contain shared variables only. If it "
+                         "contains arbitrary parameter expressions, then "
+                         "lasagne.utils.collect_shared_vars() may help you.")
+    if isinstance(loss_or_grads, list):
+        if not len(loss_or_grads) == len(params):
+            raise ValueError("Got %d gradient expressions for %d parameters" %
+                             (len(loss_or_grads), len(params)))
+        return loss_or_grads
+    else:
+        return theano.grad(loss_or_grads, params)
+
+def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6, accu_vals = None):
+    """
+    Modified from lasagne version.
+    """
     grads = get_or_compute_grads(loss_or_grads, params)
     updates = OrderedDict()
 
     # Using theano constant to prevent upcasting of float32
     one = T.constant(1)
 
+    accu_list = accu_vals if accu_vals is not None else []
+    index = 0
     for param, grad in zip(params, grads):
         value = param.get_value(borrow=True)
-        if accu is None:
+        if accu_vals is None:
             accu = theano.shared(np.zeros(value.shape, dtype=value.dtype),
                                  broadcastable=param.broadcastable)
+            accu_list.append(accu)
+        else:
+            accu =accu_vals[index]
         accu_new = rho * accu + (one - rho) * grad ** 2
         updates[accu] = accu_new
         updates[param] = param - (learning_rate * grad /
                                   T.sqrt(accu_new + epsilon))
+        index += 1
 
-    return updates, accu
+    return updates, accu_list
 
 #TODO: Debug, figure out how to save and load rms_prop state along with any other needed info
 class Learner:
@@ -227,7 +253,8 @@ class Learner:
         loss = Pw_loss + Qsigma_loss
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
-            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(1))
+            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(0))
+            self.opt_state.append(accu)
         else:
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon)
             self.opt_state.append(accu)
@@ -245,7 +272,8 @@ class Learner:
         loss = Pw_mentor_loss + Qsigma_mentor_loss
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
-            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(1))
+            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(0))
+            self.opt_state.append(accu)
         else:
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon)
             self.opt_state.append(accu)
