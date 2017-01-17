@@ -71,7 +71,7 @@ else:
 	Qsigmas = []
 	Pw_vars = []
 
-numEpisodes = 300000
+numEpisodes = 400000
 batch_size = 64
 boardsize = 5
 

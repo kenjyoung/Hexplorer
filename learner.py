@@ -41,17 +41,17 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6, acc
     # Using theano constant to prevent upcasting of float32
     one = T.constant(1)
 
-    accu_list = accu_vals if accu_vals is not None else []
+    accu_list = []
     index = 0
     for param, grad in zip(params, grads):
         value = param.get_value(borrow=True)
         if accu_vals is None:
             accu = theano.shared(np.zeros(value.shape, dtype=value.dtype),
                                  broadcastable=param.broadcastable)
-            accu_list.append(accu)
         else:
             accu =theano.shared(accu_vals[index],
                                  broadcastable=param.broadcastable)
+        accu_list.append(accu)
         accu_new = rho * accu + (one - rho) * grad ** 2
         updates[accu] = accu_new
         updates[param] = param - (learning_rate * grad /
@@ -86,13 +86,14 @@ class Learner:
             with open(loadfile, 'rb') as f:
                 data = pickle.load(f)
             params = data["params"]
-            self.opt_state = data["opt"]
+            opt_vals = data["opt"]
             self.mem = data["mem"]
         else:
             params = None
-            self.opt_state = []
+            opt_vals = None
             self.mem = replay_memory(mem_size, input_shape)
 
+        self.opt_state = []
         self.layers = []
         num_filters = 128
         num_shared = 3
@@ -254,7 +255,7 @@ class Learner:
         loss = Pw_loss + Qsigma_loss
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
-            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(0))
+            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, opt_vals.pop(0))
             self.opt_state.append(accu)
         else:
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon)
@@ -273,11 +274,11 @@ class Learner:
         loss = Pw_mentor_loss + Qsigma_mentor_loss
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
-            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(0))
-            self.opt_state.append(accu.value())
+            updates, accu = rmsprop(loss, params, alpha, rho, epsilon, opt_vals.pop(0))
+            self.opt_state.append(accu)
         else:
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon)
-            self.opt_state.append(accu.value())
+            self.opt_state.append(accu)
 
         self._mentor = theano.function(
             [state_batch, mentor_Pws, mentor_Qsigmas],
@@ -372,6 +373,6 @@ class Learner:
 
     def save(self, savefile = 'learner.save'):
         params = lasagne.layers.get_all_param_values(self.layers)
-        data = {'params':params, 'mem':self.mem, 'opt':[x.value() for x in self.opt_state]}
+        data = {'params':params, 'mem':self.mem, 'opt': [[x.get_value() for x in y] for y in self.opt_state]}
         with open(savefile, 'wb') as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
