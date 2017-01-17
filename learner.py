@@ -46,8 +46,8 @@ class Learner:
         self.layers = []
         num_filters = 128
         num_shared = 3
-        num_Pw = 3
-        num_Qsigma = 3
+        num_Pw = 4
+        num_Qsigma = 4
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
@@ -64,6 +64,7 @@ class Learner:
             nonlinearity = lasagne.nonlinearities.rectify, 
             W=lasagne.init.HeNormal(gain='relu'), 
             b=lasagne.init.Constant(0),
+            pos_dep_bias = False,
             padding = 1,
         )
         self.layers.append(l_1)
@@ -77,6 +78,7 @@ class Learner:
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
+                pos_dep_bias = False,
                 padding = 1,
             )
             self.layers.append(layer)
@@ -90,6 +92,7 @@ class Learner:
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
+                pos_dep_bias = False,
                 padding = 1,
             )
         self.layers.append(layer)
@@ -101,16 +104,18 @@ class Learner:
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
+                pos_dep_bias = False,
                 padding = 1,
             )
             self.layers.append(layer)
         Pw_output_layer = HexConvLayer(
                 incoming = self.layers[-1], 
                 num_filters=1, 
-                radius = 2, 
+                radius = 1, 
                 nonlinearity = lasagne.nonlinearities.sigmoid, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
+                pos_dep_bias = True,
                 padding = 0,
             )
         self.layers.append(Pw_output_layer)
@@ -124,6 +129,7 @@ class Learner:
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
+                pos_dep_bias = False,
                 padding = 1,
             )
         self.layers.append(layer)
@@ -135,16 +141,18 @@ class Learner:
                 nonlinearity = lasagne.nonlinearities.rectify, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
+                pos_dep_bias = False,
                 padding = 1,
             )
             self.layers.append(layer)
         Qsigma_output_layer = HexConvLayer(
                 incoming = self.layers[-1], 
                 num_filters=1, 
-                radius = 2, 
+                radius = 1, 
                 nonlinearity = lambda x: 2*lasagne.nonlinearities.sigmoid(x)-1, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
+                pos_dep_bias = True,
                 padding = 0,
             )
         self.layers.append(Qsigma_output_layer)

@@ -13,6 +13,7 @@ class HexConvLayer(lasagne.layers.Layer):
         nonlinearity = lasagne.nonlinearities.rectify, 
         W=lasagne.init.HeNormal(gain='relu'), 
         b=lasagne.init.Constant(0),
+        pos_dep_bias = False,
         padding = 0,
          **kwargs):
     
@@ -21,10 +22,13 @@ class HexConvLayer(lasagne.layers.Layer):
         self.radius = radius
         self.padding = padding
         self.nonlinearity = nonlinearity
+        self.pos_dep_bias = pos_dep_bias
         W_size = 2*sum([i+radius for i in range(radius-1)])+2*radius-1
         self.W_values = self.add_param(W, (self.num_filters, self.input_shape[1], W_size), name='W')
-        #position dependent biases
-        self.b = self.add_param(b, (num_filters, self.input_shape[2]-2*(self.radius-1), self.input_shape[3]-2*(self.radius-1)), name='b')
+        if(self.pos_dep_bias):
+            self.b = self.add_param(b, (num_filters, self.input_shape[2]-2*(self.radius-1), self.input_shape[3]-2*(self.radius-1)), name='b')
+        else:
+            self.b = self.add_param(b, (num_filters), name='b')
 
     def get_output_for(self, input, **kwargs):
         W = T.zeros((self.num_filters, self.input_shape[1], 2*self.radius-1, 2*self.radius-1))
@@ -45,7 +49,10 @@ class HexConvLayer(lasagne.layers.Layer):
             image_shape = self.input_shape
         )
 
-        squished_out = self.nonlinearity(conv_out + self.b.dimshuffle('x', 0, 1, 2))
+        if(self.pos_dep_bias):
+            squished_out = self.nonlinearity(conv_out + self.b.dimshuffle('x', 0, 1, 2))
+        else:
+            squished_out = self.nonlinearity(conv_out + self.b.dimshuffle('x',0,'x','x'))
 
         if(self.padding == 0):
             padded_out = squished_out
