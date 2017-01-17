@@ -46,7 +46,7 @@ args = parser.parse_args()
 #save network every x minutes during training
 save_time = 60
 #save snapshot of network to unique file every x minutes during training
-snapshot_time = 240
+snapshot_interval = 1000
 
 # print("Loading starting positions... ")
 # datafile = open("data/scoredPositionsFull.npz", 'rb')
@@ -71,7 +71,7 @@ else:
 	Qsigmas = []
 	Pw_vars = []
 
-numEpisodes = 100000
+numEpisodes = 400000
 batch_size = 64
 boardsize = 5
 
@@ -89,9 +89,8 @@ else:
 
 print("Running episodes...")
 last_save = time.clock()
-last_snapshot = time.clock()
 try:
-	for i in range(numEpisodes):
+	for i in range(len(Pw_costs), numEpisodes):
 		num_step = 0
 		Pw_cost_sum = 0
 		Qsigma_cost_sum = 0
@@ -103,7 +102,11 @@ try:
 		# index = np.random.randint(numPositions)
 		
 		#start from open 5x5 board each time
+		move_parity = np.random.choice([True,False])
 		gameW = new_game(5)
+		action = np.random.randint(0,25)
+		move_cell = action_to_cell(action)
+		play_cell(gameW, move_cell, white if move_parity else black)
 		gameB = mirror_game(gameW)
 		t = time.clock()
 		while(winner(gameW)==None):
@@ -111,8 +114,7 @@ try:
 			state1 = np.copy(gameW if move_parity else gameB)
 			played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
 			move_cell = action_to_cell(action)
-			# print(action)
-			# print(state_string(gameW, boardsize))
+			#print(state_string(gameW, boardsize))
 			play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
 			play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
 			if(not winner(gameW)==None):
@@ -143,9 +145,8 @@ try:
 			if(time.clock()-last_save > 60*save_time):
 				save(Agent, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs)
 				last_save = time.clock()
-			if(time.clock()-last_snapshot > 60*snapshot_time):
-				snapshot(Agent)
-				last_snapshot = time.clock()
+		if(i%snapshot_interval == 0):
+			snapshot(Agent)
 		run_time = time.clock() - t
 		print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(Pw_cost)+" Qsigma Cost: "+str(Qsigma_cost))
 
