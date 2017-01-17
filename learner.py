@@ -50,7 +50,8 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6, acc
                                  broadcastable=param.broadcastable)
             accu_list.append(accu)
         else:
-            accu =accu_vals[index]
+            accu =theano.shared(accu_vals[index],
+                                 broadcastable=param.broadcastable)
         accu_new = rho * accu + (one - rho) * grad ** 2
         updates[accu] = accu_new
         updates[param] = param - (learning_rate * grad /
@@ -191,7 +192,7 @@ class Learner:
                 incoming = self.layers[-1], 
                 num_filters=1, 
                 radius = 2, 
-                nonlinearity = lambda x: 2*lasagne.nonlinearities.sigmoid(x)-1, 
+                nonlinearity = lasagne.nonlinearities.sigmoid, 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
                 padding = 0,
@@ -273,10 +274,10 @@ class Learner:
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon, self.opt_state.pop(0))
-            self.opt_state.append(accu)
+            self.opt_state.append(accu.value())
         else:
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon)
-            self.opt_state.append(accu)
+            self.opt_state.append(accu.value())
 
         self._mentor = theano.function(
             [state_batch, mentor_Pws, mentor_Qsigmas],
@@ -371,6 +372,6 @@ class Learner:
 
     def save(self, savefile = 'learner.save'):
         params = lasagne.layers.get_all_param_values(self.layers)
-        data = {'params':params, 'mem':self.mem, 'opt':self.opt_state}
+        data = {'params':params, 'mem':self.mem, 'opt':[x.value() for x in self.opt_state]}
         with open(savefile, 'wb') as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
