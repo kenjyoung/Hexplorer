@@ -6,6 +6,10 @@ from learner import Learner
 import pickle
 import argparse
 import os
+import subprocess
+
+def get_git_hash():
+    return str(subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip())
 
 def save(learner, Pw_costs, Qsigma_costs):
 	print("saving network...")
@@ -35,6 +39,10 @@ datafile.close()
 
 if args.data and not os.path.exists(args.data):
 	os.makedirs(args.data)
+	with open(args.data+'/info.txt', 'a') as f:
+	    f.write('git commit: '+get_git_hash()+'\n')
+	    f.write('load: '+('None' if args.load is None else args.load+'\n'))
+	    f.flush()
 
 if args.data and os.path.exists(args.data+'/data.save'):
 	with open(args.data+'/data.save', 'rb') as f:
