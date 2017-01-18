@@ -5,6 +5,10 @@ import pickle
 import argparse
 import time
 import os
+import subprocess
+
+def get_git_hash():
+    return str(subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip())
 
 def save(learner, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs):
 	print("saving network...")
@@ -56,7 +60,11 @@ snapshot_interval = 1000
 # numPositions = len(positions)
 
 if args.data and not os.path.exists(args.data):
-	os.makedirs(args.data)
+    os.makedirs(args.data)
+    with open(args.data+'/info.txt', 'a') as f:
+        f.write('git commit: '+get_git_hash()+'\n')
+        f.write('load: '+('None' if args.load is None else args.load+'\n'))
+        f.flush()
 
 if args.data and os.path.exists(args.data+'/data.save'):
 	with open(args.data+'/data.save', 'rb') as f:
