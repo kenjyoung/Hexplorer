@@ -28,7 +28,7 @@ class HexConvLayer(lasagne.layers.Layer):
         if(self.pos_dep_bias):
             self.b = self.add_param(b, (num_filters, self.input_shape[2]-2*(self.radius-1), self.input_shape[3]-2*(self.radius-1)), name='b')
         else:
-            self.b = self.add_param(b, (num_filters), name='b')
+            self.b = self.add_param(b, (num_filters,), name='b')
 
     def get_output_for(self, input, **kwargs):
         W = T.zeros((self.num_filters, self.input_shape[1], 2*self.radius-1, 2*self.radius-1))

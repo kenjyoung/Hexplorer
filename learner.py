@@ -147,7 +147,7 @@ class Learner:
                 padding = 1,
             )
         self.layers.append(layer)
-        for i in range(num_Pw-2):
+        for i in range(num_Pw-3):
             layer = HexConvLayer(
                 incoming = self.layers[-1], 
                 num_filters=num_filters, 
@@ -159,6 +159,17 @@ class Learner:
                 padding = 1,
             )
             self.layers.append(layer)
+        layer = HexConvLayer(
+            incoming = self.layers[-1], 
+            num_filters=num_filters, 
+            radius = 2, 
+            nonlinearity = lasagne.nonlinearities.leaky_rectify, 
+            W=lasagne.init.HeNormal(gain='relu'), 
+            b=lasagne.init.Constant(0),
+            pos_dep_bias = False,
+            padding = 0,
+        )
+        self.layers.append(layer)
         Pw_output_layer = HexConvLayer(
                 incoming = self.layers[-1], 
                 num_filters=1, 
@@ -184,7 +195,7 @@ class Learner:
                 padding = 1,
             )
         self.layers.append(layer)
-        for i in range(num_Qsigma-2):
+        for i in range(num_Qsigma-3):
             layer = HexConvLayer(
                 incoming = self.layers[-1], 
                 num_filters=num_filters, 
@@ -196,6 +207,17 @@ class Learner:
                 padding = 1,
             )
             self.layers.append(layer)
+        layer = HexConvLayer(
+            incoming = self.layers[-1], 
+            num_filters=num_filters, 
+            radius = 2, 
+            nonlinearity = lasagne.nonlinearities.leaky_rectify, 
+            W=lasagne.init.HeNormal(gain='relu'), 
+            b=lasagne.init.Constant(0),
+            pos_dep_bias = False,
+            padding = 0,
+        )
+        self.layers.append(layer)
         Qsigma_output_layer = HexConvLayer(
                 incoming = self.layers[-1], 
                 num_filters=1, 
