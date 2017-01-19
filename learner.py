@@ -3,6 +3,7 @@ from theano import tensor as T
 import numpy as np
 import random as pr
 import lasagne
+from lasagne.regularization import regularize_layer_params, l2
 from replay_memory import replay_memory
 from layers import HexConvLayer
 from inputFormat import *
@@ -282,7 +283,9 @@ class Learner:
         Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(2)[T.arange(Qsigma_targets.shape[0]),action_batch], T.clip(Qsigma_targets,-0.25, 0.25)), mode='mean')
         Qsigma_params = lasagne.layers.get_all_params(Qsigma_output_layer)
 
-        loss = Pw_loss + Qsigma_loss
+        l2_penalty = regularize_layer_params(self.layers, l2)*1e-6
+
+        loss = Pw_loss + Qsigma_loss + l2_penalty
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon, opt_vals.pop(0))
