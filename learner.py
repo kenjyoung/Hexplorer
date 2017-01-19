@@ -95,7 +95,7 @@ class Learner:
 
         self.opt_state = []
         self.layers = []
-        num_filters = 128
+        num_filters = 32
         num_shared = 3
         num_Pw = 4
         num_Qsigma = 4
@@ -222,7 +222,7 @@ class Learner:
                 incoming = self.layers[-1], 
                 num_filters=1, 
                 radius = 1, 
-                nonlinearity = lasagne.nonlinearities.sigmoid, 
+                nonlinearity = lambda x: 0.5*(lasagne.nonlinearities.sigmoid(x)-0.5), 
                 W=lasagne.init.HeNormal(gain='relu'), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = True,
@@ -279,7 +279,7 @@ class Learner:
         Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.binary_crossentropy(T.clip(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch],0.0001,0.9999), T.clip(Pw_targets,0.0001,0.9999)), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
 
-        Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.binary_crossentropy(T.clip(Qsigma_output.flatten(2)[T.arange(Qsigma_targets.shape[0]),action_batch],0.0001,0.9999), T.clip(Qsigma_targets,0.0001,0.9999)), mode='mean')
+        Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(2)[T.arange(Qsigma_targets.shape[0]),action_batch], T.clip(Qsigma_targets,-0.25, 0.25)), mode='mean')
         Qsigma_params = lasagne.layers.get_all_params(Qsigma_output_layer)
 
         loss = Pw_loss + Qsigma_loss
