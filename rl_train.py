@@ -155,6 +155,7 @@ try:
 				last_save = time.clock()
 		if(i%snapshot_interval == 0):
 			snapshot(Agent)
+            save(Agent, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs)
 		run_time = time.clock() - t
 		print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(Pw_cost)+" Qsigma Cost: "+str(Qsigma_cost))
 
