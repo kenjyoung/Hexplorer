@@ -96,10 +96,10 @@ class Learner:
 
         self.opt_state = []
         self.layers = []
-        num_filters = 32
-        num_shared = 3
-        num_Pw = 4
-        num_Qsigma = 4
+        num_filters = 128
+        num_shared = 6
+        num_Pw = 7
+        num_Qsigma = 7
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(

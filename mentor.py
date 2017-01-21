@@ -77,7 +77,7 @@ else:
 print("Training model on mentor set...")
 indices = list(range(n_train))
 try:
-	for epoch in range(numEpochs):
+	for epoch in range(len(Pw_costs), numEpochs):
 		Pw_cost_sum = 0
 		Qsigma_cost_sum = 0
 		print("epoch: "+str(epoch))
