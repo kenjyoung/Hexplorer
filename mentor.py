@@ -86,7 +86,7 @@ try:
 			t = time.clock()
 			state_batch = positions[indices[batch*batch_size:(batch+1)*batch_size]]
 			Pw_batch = scores[indices[batch*batch_size:(batch+1)*batch_size]]
-			Qsigma_batch = np.ones(Pw_batch.shape)
+			Qsigma_batch = 0.25*np.ones(Pw_batch.shape)
 			Pw_cost, Qsigma_cost = Agent.mentor(state_batch, Pw_batch, Qsigma_batch)
 			Pw_cost_sum += Pw_cost
 			Qsigma_cost_sum += Qsigma_cost
