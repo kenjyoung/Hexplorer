@@ -69,7 +69,7 @@ class Learner:
         rho = 0.9, 
         epsilon = 1e-6, 
         mem_size = 100000,
-        boardsize = 5):
+        boardsize = 13):
         input_size = boardsize+2*padding
         input_shape = (num_channels,input_size,input_size)
 
@@ -304,7 +304,7 @@ class Learner:
         Pw_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(),mentor_Pws.flatten()))
         Qsigma_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(),mentor_Qsigmas.flatten()))
 
-        loss = Pw_mentor_loss + Qsigma_mentor_loss
+        loss = Pw_mentor_loss + Qsigma_mentor_loss + l2_penalty
         params = Pw_params + Qsigma_params
         if(loadfile is not None):
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon, opt_vals.pop(0))

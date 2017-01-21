@@ -58,7 +58,7 @@ positions = positions.astype(theano.config.floatX)
 scores = scores.astype(theano.config.floatX)
 n_train = scores.shape[0]
 
-numEpochs = 10
+numEpochs = 50
 iteration = 0
 batch_size = 64
 numBatches = n_train//batch_size

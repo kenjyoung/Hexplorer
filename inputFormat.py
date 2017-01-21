@@ -8,7 +8,7 @@ north = 4
 south = 5
 num_channels = 6
 padding = 2
-boardsize = 5
+boardsize = 13
 neighbor_patterns = ((-1,0), (0,-1), (-1,1), (0,1), (1,0), (1,-1))
 
 def other(color):
