@@ -77,7 +77,7 @@ else:
 print("Training model on mentor set...")
 indices = list(range(n_train))
 try:
-	for epoch in range(len(Pw_costs), numEpochs):
+	for epoch in range(numEpochs):
 		Pw_cost_sum = 0
 		Qsigma_cost_sum = 0
 		print("epoch: "+str(epoch))
@@ -92,7 +92,7 @@ try:
 			Qsigma_cost_sum += Qsigma_cost
 			run_time = time.clock()-t
 			iteration+=1
-			print("Time per position: "+str(run_time/batch_size)+" Pw Cost: "+str(Pw_cost)+" Qsigma Cost: "+str(Qsigma_cost))
+			#print("Time per position: "+str(run_time/batch_size)+" Pw Cost: "+str(Pw_cost)+" Qsigma Cost: "+str(Qsigma_cost))
 		Pw_costs.append(Pw_cost_sum/numBatches)
 		Qsigma_costs.append(Qsigma_cost_sum/numBatches)
 
