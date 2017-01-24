@@ -36,7 +36,8 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6, acc
     """
     Modified from lasagne version.
     """
-    grads = T.clip(get_or_compute_grads(loss_or_grads, params),-1,1)
+    grads = get_or_compute_grads(loss_or_grads, params)
+    grads=[T.clip(grad,-1,1) for grad in grads]
     updates = OrderedDict()
 
     # Using theano constant to prevent upcasting of float32
