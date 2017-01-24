@@ -80,7 +80,7 @@ else:
     Pw_vars = []
 
 numEpisodes = 1000000
-batch_size = 64
+batch_size = 32
 boardsize = 13
 
 

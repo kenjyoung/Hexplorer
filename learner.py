@@ -36,7 +36,7 @@ def rmsprop(loss_or_grads, params, learning_rate=1.0, rho=0.9, epsilon=1e-6, acc
     """
     Modified from lasagne version.
     """
-    grads = get_or_compute_grads(loss_or_grads, params)
+    grads = T.clip(get_or_compute_grads(loss_or_grads, params),-1,1)
     updates = OrderedDict()
 
     # Using theano constant to prevent upcasting of float32
@@ -114,7 +114,7 @@ class Learner:
             num_filters=num_filters, 
             radius = 3, 
             nonlinearity = lasagne.nonlinearities.leaky_rectify, 
-            W=lasagne.init.HeNormal(gain='relu'), 
+            W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
             b=lasagne.init.Constant(0),
             pos_dep_bias = False,
             padding = 1,
@@ -128,7 +128,7 @@ class Learner:
                 num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.leaky_rectify, 
-                W=lasagne.init.HeNormal(gain='relu'), 
+                W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = False,
                 padding = 1,
@@ -142,7 +142,7 @@ class Learner:
                 num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.leaky_rectify, 
-                W=lasagne.init.HeNormal(gain='relu'), 
+                W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = False,
                 padding = 1,
@@ -154,7 +154,7 @@ class Learner:
                 num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.leaky_rectify, 
-                W=lasagne.init.HeNormal(gain='relu'), 
+                W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = False,
                 padding = 1,
@@ -165,7 +165,7 @@ class Learner:
             num_filters=num_filters, 
             radius = 2, 
             nonlinearity = lasagne.nonlinearities.leaky_rectify, 
-            W=lasagne.init.HeNormal(gain='relu'), 
+            W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
             b=lasagne.init.Constant(0),
             pos_dep_bias = False,
             padding = 0,
@@ -176,7 +176,7 @@ class Learner:
                 num_filters=1, 
                 radius = 1, 
                 nonlinearity = lasagne.nonlinearities.sigmoid, 
-                W=lasagne.init.HeNormal(gain='relu'), 
+                W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = True,
                 padding = 0,
@@ -190,7 +190,7 @@ class Learner:
                 num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.leaky_rectify, 
-                W=lasagne.init.HeNormal(gain='relu'), 
+                W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = False,
                 padding = 1,
@@ -202,7 +202,7 @@ class Learner:
                 num_filters=num_filters, 
                 radius = 2, 
                 nonlinearity = lasagne.nonlinearities.leaky_rectify, 
-                W=lasagne.init.HeNormal(gain='relu'), 
+                W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = False,
                 padding = 1,
@@ -213,7 +213,7 @@ class Learner:
             num_filters=num_filters, 
             radius = 2, 
             nonlinearity = lasagne.nonlinearities.leaky_rectify, 
-            W=lasagne.init.HeNormal(gain='relu'), 
+            W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
             b=lasagne.init.Constant(0),
             pos_dep_bias = False,
             padding = 0,
@@ -224,7 +224,7 @@ class Learner:
                 num_filters=1, 
                 radius = 1, 
                 nonlinearity = lambda x: 0.5*(lasagne.nonlinearities.sigmoid(x)-0.5), 
-                W=lasagne.init.HeNormal(gain='relu'), 
+                W=lasagne.init.HeNormal(sqrt(2/(1+0.01**2))), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = True,
                 padding = 0,
@@ -283,7 +283,7 @@ class Learner:
         Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(2)[T.arange(Qsigma_targets.shape[0]),action_batch], T.clip(Qsigma_targets,-0.25, 0.25)), mode='mean')
         Qsigma_params = lasagne.layers.get_all_params(Qsigma_output_layer)
 
-        l2_penalty = regularize_layer_params(self.layers, l2)*1e-5
+        l2_penalty = regularize_layer_params(self.layers, l2)*1e-4
 
         loss = Pw_loss + Qsigma_loss + l2_penalty
         params = Pw_params + Qsigma_params
