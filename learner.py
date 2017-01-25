@@ -269,7 +269,7 @@ class Learner:
         )
         self._evaluate_multi = theano.function(
             [state_batch],
-            outputs = [(Pw_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2), (Qsigma_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2)]
+            outputs = [(Pw_output*(1-played)).flatten(2), (Qsigma_output*(1-played)).flatten(2)]
         )
 
         #Build update function for both Pw and Qsigma
@@ -324,12 +324,13 @@ class Learner:
             return
         states1, actions, states2, terminals = self.mem.sample_batch(batch_size)
 
-        Pw2, Qsigma2 = self._evaluate_multi(states2)
+        Pw2, Qsigma2= self._evaluate_multi(states2)
         Pw1 = self._evaluate_Pws(states1)
         #add a cap on the lowest possible value of losing probability
         Pl =  np.maximum(1-Pw2,0.00001)
         joint = np.prod(Pl, axis=1)
-
+        print(Pl.shape)
+        print(joint.shape)
         #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
