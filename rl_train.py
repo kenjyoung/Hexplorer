@@ -52,12 +52,12 @@ save_time = 60
 #save snapshot of network to unique file every x minutes during training
 snapshot_interval = 1000
 
-print("Loading starting positions... ")
-datafile = open("data/scoredPositionsFull.npz", 'rb')
-data = np.load(datafile)
-positions = data['positions']
-datafile.close()
-numPositions = len(positions)
+# print("Loading starting positions... ")
+# datafile = open("data/scoredPositionsFull.npz", 'rb')
+# data = np.load(datafile)
+# positions = data['positions']
+# datafile.close()
+# numPositions = len(positions)
 
 if args.data and not os.path.exists(args.data):
     os.makedirs(args.data)
@@ -81,7 +81,7 @@ else:
 
 numEpisodes = 1000000
 batch_size = 32
-boardsize = 13
+boardsize = 5
 
 
 #if load parameter is passed or a saved learner is available in the data directory load a network from a file
@@ -104,23 +104,26 @@ try:
         Qsigma_cost_sum = 0
         Qsigma_sum = 0
         Pw_var_sum = 0
-        #randomly choose who is to move from each position to increase variability in dataset
-        move_parity = np.random.choice([True,False])
+        # #randomly choose who is to move from each position to increase variability in dataset
+        # move_parity = np.random.choice([True,False])
         #randomly choose starting position from database
-        index = np.random.randint(numPositions)
-        #randomly flip states to capture symmetry
-        if(np.random.choice([True,False])):
-            gameW = np.copy(positions[index])
-        else:
-            gameW = flip_game(positions[index])
+        # index = np.random.randint(numPositions)
+        # #randomly flip states to capture symmetry
+        # if(np.random.choice([True,False])):
+        #     gameW = np.copy(positions[index])
+        # else:
+        #     gameW = flip_game(positions[index])
+        gameW = new_game(5)
+        play_cell(gameW, action_to_cell(np.random.randint(0,25)), gameW)
         gameB = mirror_game(gameW)
+        move_parity = False
         t = time.clock()
         while(winner(gameW)==None):
             action, Pw, Qsigma = Agent.exploration_policy(gameW if move_parity else gameB)
             state1 = np.copy(gameW if move_parity else gameB)
             played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
             move_cell = action_to_cell(action)
-            #print(state_string(gameW, boardsize))
+            print(state_string(gameW, boardsize))
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
             if(not winner(gameW)==None):

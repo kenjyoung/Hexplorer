@@ -70,7 +70,7 @@ class Learner:
         rho = 0.9, 
         epsilon = 1e-6, 
         mem_size = 100000,
-        boardsize = 13):
+        boardsize = 5):
         input_size = boardsize+2*padding
         input_shape = (num_channels,input_size,input_size)
 
@@ -98,9 +98,9 @@ class Learner:
         self.opt_state = []
         self.layers = []
         num_filters = 128
-        num_shared = 6
-        num_Pw = 7
-        num_Qsigma = 7
+        num_shared = 3
+        num_Pw = 4
+        num_Qsigma = 4
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
@@ -172,18 +172,15 @@ class Learner:
             padding = 0,
         )
         self.layers.append(layer)
-        Pw_output_layer = HexConvLayer(
+        Pw_output_layer = lasagne.layers.DenseLayer(
                 incoming = self.layers[-1], 
-                num_filters=1, 
-                radius = 1, 
+                num_units = boardsize*boardsize,
                 nonlinearity = lasagne.nonlinearities.sigmoid, 
-                W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
+                W=lasagne.init.HeNormal(1), 
                 b=lasagne.init.Constant(0),
-                pos_dep_bias = True,
-                padding = 0,
             )
         self.layers.append(Pw_output_layer)
-        Pw_output = lasagne.layers.get_output(Pw_output_layer)
+        Pw_output = lasagne.layers.get_output(Pw_output_layer).reshape((boardsize, boardsize))
 
         #Initialize layers unique to Qsigma network
         layer = HexConvLayer(
@@ -220,18 +217,15 @@ class Learner:
             padding = 0,
         )
         self.layers.append(layer)
-        Qsigma_output_layer = HexConvLayer(
+        Qsigma_output_layer = lasagne.layers.DenseLayer(
                 incoming = self.layers[-1], 
-                num_filters=1, 
-                radius = 1, 
-                nonlinearity = lambda x: 0.5*(lasagne.nonlinearities.sigmoid(x)-0.5), 
-                W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
+                num_units = boardsize*boardsize,
+                nonlinearity = lasagne.nonlinearities.sigmoid, 
+                W=lasagne.init.HeNormal(1), 
                 b=lasagne.init.Constant(0),
-                pos_dep_bias = True,
-                padding = 0,
             )
         self.layers.append(Qsigma_output_layer)
-        Qsigma_output = lasagne.layers.get_output(Qsigma_output_layer)
+        Qsigma_output = lasagne.layers.get_output(Qsigma_output_layer).reshape((boardsize, boardsize))
 
         #If a loadfile is given, use saved parameter values
         if(loadfile is not None):
