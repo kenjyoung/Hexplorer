@@ -114,7 +114,7 @@ try:
         # else:
         #     gameW = flip_game(positions[index])
         gameW = new_game(5)
-        play_cell(gameW, action_to_cell(np.random.randint(0,25)), gameW)
+        play_cell(gameW, action_to_cell(np.random.randint(0,25)), white)
         gameB = mirror_game(gameW)
         move_parity = False
         t = time.clock()

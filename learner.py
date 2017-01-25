@@ -99,8 +99,8 @@ class Learner:
         self.layers = []
         num_filters = 128
         num_shared = 3
-        num_Pw = 4
-        num_Qsigma = 4
+        num_Pw = 3
+        num_Qsigma = 3
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
@@ -180,7 +180,8 @@ class Learner:
                 b=lasagne.init.Constant(0),
             )
         self.layers.append(Pw_output_layer)
-        Pw_output = lasagne.layers.get_output(Pw_output_layer).reshape((boardsize, boardsize))
+        Pw_output = lasagne.layers.get_output(Pw_output_layer)
+        Pw_output = Pw_output.reshape((Pw_output.shape[0], boardsize, boardsize))
 
         #Initialize layers unique to Qsigma network
         layer = HexConvLayer(
@@ -225,7 +226,8 @@ class Learner:
                 b=lasagne.init.Constant(0),
             )
         self.layers.append(Qsigma_output_layer)
-        Qsigma_output = lasagne.layers.get_output(Qsigma_output_layer).reshape((boardsize, boardsize))
+        Qsigma_output = lasagne.layers.get_output(Qsigma_output_layer)
+        Qsigma_output = Qsigma_output.reshape((Pw_output.shape[0], boardsize, boardsize))
 
         #If a loadfile is given, use saved parameter values
         if(loadfile is not None):
@@ -272,7 +274,7 @@ class Learner:
         )
 
         #Build update function for both Pw and Qsigma
-        Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.binary_crossentropy(T.clip(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch],0.0001,0.9999), T.clip(Pw_targets,0.0001,0.9999)), mode='mean')
+        Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch], Pw_targets), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
 
         Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(2)[T.arange(Qsigma_targets.shape[0]),action_batch], T.clip(Qsigma_targets,-0.25, 0.25)), mode='mean')
