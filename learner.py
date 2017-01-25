@@ -329,8 +329,6 @@ class Learner:
         #add a cap on the lowest possible value of losing probability
         Pl =  np.maximum(1-Pw2,0.00001)
         joint = np.prod(Pl, axis=1)
-        print(Pl.shape)
-        print(joint.shape)
         #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
