@@ -96,7 +96,7 @@ class Learner:
 
         self.opt_state = []
         self.layers = []
-        num_filters = 128
+        num_filters = 64
         num_shared = 3
         num_Pw = 3
         num_Qsigma = 3
