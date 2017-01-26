@@ -280,7 +280,7 @@ class Learner:
         )
 
         #Build update function for both Pw and Qsigma
-        Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.binary_crossentropy(T.clip(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch],0.0001,0.9999), T.clip(Pw_targets,0.0001,0.9999)), mode='mean')
+        Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch], Pw_targets), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
 
         Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(2)[T.arange(Qsigma_targets.shape[0]),action_batch], T.clip(Qsigma_targets,-0.25, 0.25)), mode='mean')
