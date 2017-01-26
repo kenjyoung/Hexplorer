@@ -19,6 +19,11 @@ def rargmax(vector):
     indices = np.nonzero(vector == m)[0]
     return pr.choice(indices)
 
+def rargmin(vector):
+    m = np.amin(vector)
+    indices = np.nonzero(vector == m)[0]
+    return pr.choice(indices)
+
 def get_or_compute_grads(loss_or_grads, params):
     """
     Helper function returning a list of gradients.
@@ -81,9 +86,9 @@ class Learner:
         state_batch = T.tensor4('state_batch')
         action_batch = T.ivector('action_batch')
         mentor_Pws = T.tensor3('mentor_Pws')
-        mentor_Qsigmas = T.tensor3('mentor_Qsigmas')
+        mentor_Counts = T.tensor3('mentor_Counts')
         Pw_targets = T.fvector('Pw_targets')
-        Qsigma_targets = T.fvector('Qsigma_targets')
+        Count_targets = T.fvector('Count_targets')
 
         #Load from file if given
         if(loadfile != None):
@@ -101,8 +106,6 @@ class Learner:
         self.layers = []
         num_filters = 32
         num_shared = 5
-        num_Pw = 3
-        num_Qsigma = 3
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
@@ -124,7 +127,7 @@ class Learner:
         )
         self.layers.append(l_1)
 
-        #Initialize layers shared by Pw and Qsigma networks
+        #Initialize layers shared by Pw and Count networks
         for i in range(num_shared-2):
             layer = HexConvLayer(
                 incoming = self.layers[-1], 
@@ -169,7 +172,7 @@ class Learner:
                 incoming = final_shared_layer, 
                 num_filters=1, 
                 radius = 1, 
-                nonlinearity = lasagne.nonlinearity.linear, 
+                nonlinearity = lasagne.nonlinearities.linear, 
                 W=lasagne.init.Constant(0), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = True,
@@ -242,7 +245,7 @@ class Learner:
             self.opt_state.append(accu)
 
         self._update = theano.function(
-            [state_batch, action_batch, Pw_targets],
+            [state_batch, action_batch, Pw_targets, Count_targets],
             updates = updates,
             outputs = [Pw_loss, Count_loss]
         )
@@ -287,28 +290,33 @@ class Learner:
         Count_targets = Count1[T.arange(actions.shape[0]),actions]+1
         return self._update(states1, actions, Pw_targets, Count_targets)
 
-    def mentor(self, states, Pws, Qsigmas):
+    def mentor(self, states, Pws, Counts):
         states = np.asarray(states, dtype=theano.config.floatX)
         Pws = np.asarray(Pws, dtype=theano.config.floatX)
-        Qsigmas = np.asarray(Qsigmas, dtype=theano.config.floatX)
-        return self._mentor(states, Pws, Qsigmas)
+        Counts = np.asarray(Counts, dtype=theano.config.floatX)
+        return self._mentor(states, Pws, Counts)
 
     def exploration_policy(self, state, win_cutoff=0.0001):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
-        Pw, Counts = self._evaluate(state)
-        ucb = sqrt(2*log(sum(Counts, axis=1))/Counts)
+        Pw, Count = self._evaluate(state)
 
         #epsilon greedy
         if np.random.rand()<0.1:
             action = np.random.choice(np.where(played==0)[0])
-            return action, Pw, Qsigma
+            return action, Pw, Count
 
-        values = max(0, Pw+ucb)
+        if(np.any(Count<=0)):
+            action = rargmin(Count)
+            return action, Pw, Count
+
+        ucb = np.sqrt(2*np.log(np.sum(Count))/Count)
+
+        values = np.maximum(0, Pw+ucb)
         #never select played values
         values[played]=-1
         action = rargmax(values)
-        return action, Pw, Counts
+        return action, Pw, Count
 
     def optimization_policy(self, state):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
@@ -328,10 +336,10 @@ class Learner:
 
     def win_prob_and_exp(self, state):
         state = np.asarray(state, dtype=theano.config.floatX)
-        Pw, Qsigma = self._evaluate(state)
+        Pw, Count = self._evaluate(state)
         Pw_values = Pw
-        Qsigma_values = Qsigma
-        return Pw_values, Qsigma_values
+        Count_values = Count
+        return Pw_values, Count_values
 
 
     def save(self, savefile = 'learner.save'):
