@@ -184,6 +184,7 @@ class Learner:
             )
         self.layers.append(Pw_output_layer)
         Pw_output = lasagne.layers.get_output(Pw_output_layer)
+        Pw_output = T.reshape(Pw_output,(Pw_output.shape[0],boardsize,boardsize))
 
         #Initialize layers unique to Qsigma network
         layer = HexConvLayer(
@@ -232,6 +233,7 @@ class Learner:
             )
         self.layers.append(Qsigma_output_layer)
         Qsigma_output = lasagne.layers.get_output(Qsigma_output_layer)
+        Qsigma_output = T.reshape(Qsigma_output,(Qsigma_output.shape[0],boardsize,boardsize))
 
         #If a loadfile is given, use saved parameter values
         if(loadfile is not None):
@@ -274,7 +276,7 @@ class Learner:
         )
         self._evaluate_multi = theano.function(
             [state_batch],
-            outputs = [(Pw_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2), (Qsigma_output*(1-played).dimshuffle(0,'x',1,2)).flatten(2)]
+            outputs = [(Pw_output*(1-played)).flatten(2), (Qsigma_output*(1-played)).flatten(2)]
         )
 
         #Build update function for both Pw and Qsigma
