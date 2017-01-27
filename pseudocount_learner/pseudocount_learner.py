@@ -118,12 +118,12 @@ class Learner:
         l_1 = HexConvLayer(
             incoming = l_in, 
             num_filters=num_filters, 
-            radius = 3, 
+            radius = 2, 
             nonlinearity = lasagne.nonlinearities.leaky_rectify, 
             W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
             b=lasagne.init.Constant(0),
             pos_dep_bias = False,
-            padding = 1,
+            padding = 0,
         )
         self.layers.append(l_1)
 
@@ -168,6 +168,7 @@ class Learner:
         Pw_output = Pw_output.reshape((Pw_output.shape[0], boardsize, boardsize))
 
         self.layers.append(layer)
+        
         Count_output_layer = HexConvLayer(
                 incoming = final_shared_layer, 
                 num_filters=1, 
@@ -227,13 +228,13 @@ class Learner:
         )
 
         #Build update function for both Pw and Count
+        l2_penalty = regularize_layer_params(self.layers, l2)*1e-5
+
         Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(action_batch.shape[0]),action_batch], Pw_targets), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
 
-        Count_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Count_output.flatten(), Count_targets.flatten()), mode='mean')
-        Count_params = lasagne.layers.get_all_params(Count_output_layer)
-
-        l2_penalty = regularize_layer_params(self.layers, l2)*1e-4
+        Count_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error((Count_output*(1-played)).flatten(), Count_targets.flatten()), mode='mean')
+        Count_params = [Count_output_layer.W, Count_output_layer.b]
 
         loss = Pw_loss + Count_loss + l2_penalty
         params = Pw_params + Count_params
@@ -288,7 +289,7 @@ class Learner:
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
         Count_targets = np.copy(Count).astype(theano.config.floatX)
-        Count_targets[np.arange(actions.shape[0]),actions] = Count[np.arange(actions.shape[0]),actions]+1
+        Count_targets[np.arange(actions.shape[0]),actions] = Count[np.arange(actions.shape[0]),actions]+1/batch_size
         return self._update(states1, actions, Pw_targets, Count_targets)
 
     def mentor(self, states, Pws, Counts):
@@ -307,11 +308,13 @@ class Learner:
             action = np.random.choice(np.where(played==0)[0])
             return action, Pw, Count
 
-        if(np.any(Count<=0)):
-            action = rargmin(Count)
-            return action, Pw, Count
+        Count[Count<0] = 0
+        total = np.sum(Count)
+        ucb = np.zeros(Count.shape)
 
-        ucb = np.sqrt(2*np.log(np.sum(Count))/Count)
+        if total > 0:
+            ucb[Count>1] = np.sqrt(2*np.log(total)/Count[Count>1])
+            ucb[Count<=0] = np.inf
 
         values = np.maximum(0, Pw+ucb)
         #never select played values

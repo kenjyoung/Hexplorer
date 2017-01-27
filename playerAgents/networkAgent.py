@@ -1,6 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../")
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../pseudocount_baseline")
 from gamestate import gamestate
 from copy import copy, deepcopy
 import numpy as np

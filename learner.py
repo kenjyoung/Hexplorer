@@ -112,12 +112,12 @@ class Learner:
         l_1 = HexConvLayer(
             incoming = l_in, 
             num_filters=num_filters, 
-            radius = 3, 
+            radius = 2, 
             nonlinearity = lasagne.nonlinearities.leaky_rectify, 
             W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
             b=lasagne.init.Constant(0),
             pos_dep_bias = False,
-            padding = 1,
+            padding = 0,
         )
         self.layers.append(l_1)
 
@@ -285,7 +285,7 @@ class Learner:
         Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(2)[T.arange(Qsigma_targets.shape[0]),action_batch], T.clip(Qsigma_targets,-0.25, 0.25)), mode='mean')
         Qsigma_params = lasagne.layers.get_all_params(Qsigma_output_layer)
 
-        l2_penalty = regularize_layer_params(self.layers, l2)*1e-4
+        l2_penalty = regularize_layer_params(self.layers, l2)*1e-5
 
         loss = Pw_loss + Qsigma_loss + l2_penalty
         params = Pw_params + Qsigma_params

@@ -161,7 +161,7 @@ try:
             snapshot(Agent)
             save(Agent, Pw_vars, Counts, Pw_costs, Count_costs)
         run_time = time.clock() - t
-        print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(Pw_cost)+" Count Cost: "+str(Count_cost))
+        print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(0 if num_step == 0 else Pw_cost_sum/num_step)+" Count Cost: "+str(0 if num_step == 0 else Count_cost_sum/num_step))
 
         #log data for this episode
         if(num_step!=0):
