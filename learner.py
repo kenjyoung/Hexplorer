@@ -373,7 +373,7 @@ class Learner:
             return action, Pw, Qsigma
 
         gamma = (joint/Pl)**2
-        values = gamma*Qsigma
+        values = np.abs(gamma*Qsigma)
         #never select played values
         values[played]=-2
         action = rargmax(values)
