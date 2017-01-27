@@ -285,7 +285,7 @@ class Learner:
         Qsigma_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Qsigma_output.flatten(2)[T.arange(Qsigma_targets.shape[0]),action_batch], T.clip(Qsigma_targets,-0.25, 0.25)), mode='mean')
         Qsigma_params = lasagne.layers.get_all_params(Qsigma_output_layer)
 
-        l2_penalty = regularize_layer_params(self.layers, l2)*1e-5
+        l2_penalty = regularize_layer_params(self.layers, l2)*1e-6
 
         loss = Pw_loss + Qsigma_loss + l2_penalty
         params = Pw_params + Qsigma_params
