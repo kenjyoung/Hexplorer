@@ -88,7 +88,7 @@ class Learner:
         mentor_Pws = T.tensor3('mentor_Pws')
         mentor_Counts = T.tensor3('mentor_Counts')
         Pw_targets = T.fvector('Pw_targets')
-        Count_targets = T.fvector('Count_targets')
+        Count_targets = T.matrix('Count_targets')
 
         #Load from file if given
         if(loadfile != None):
@@ -230,7 +230,7 @@ class Learner:
         Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(action_batch.shape[0]),action_batch], Pw_targets), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
 
-        Count_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Count_output.flatten(2)[T.arange(action_batch.shape[0]),action_batch], Count_targets), mode='mean')
+        Count_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Count_output.flatten(), Count_targets.flatten()), mode='mean')
         Count_params = lasagne.layers.get_all_params(Count_output_layer)
 
         l2_penalty = regularize_layer_params(self.layers, l2)*1e-4
@@ -278,16 +278,17 @@ class Learner:
             return
         states1, actions, states2, terminals = self.mem.sample_batch(batch_size)
 
-        Pw2= self._evaluate_Pws(states2)
-        Count1 = self._evaluate_Counts(states1)
+        Pw = self._evaluate_Pws(states2)
+        Count = self._evaluate_Counts(states1)
         #add a cap on the lowest possible value of losing probability
-        Pl =  np.maximum(1-Pw2,0.00001)
+        Pl =  np.maximum(1-Pw,0.00001)
         joint = np.prod(Pl, axis=1)
         #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
-        Count_targets = Count1[T.arange(actions.shape[0]),actions]+1
+        Count_targets = np.copy(Count).astype(theano.config.floatX)
+        Count_targets[np.arange(actions.shape[0]),actions] = Count[np.arange(actions.shape[0]),actions]+1
         return self._update(states1, actions, Pw_targets, Count_targets)
 
     def mentor(self, states, Pws, Counts):
