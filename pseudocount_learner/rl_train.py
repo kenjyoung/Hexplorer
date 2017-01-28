@@ -1,5 +1,8 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../")
 import numpy as np
-from learner import Learner
+from pseudocount_learner import Learner
 from inputFormat import *
 import pickle
 import argparse
@@ -10,7 +13,7 @@ import subprocess
 def get_git_hash():
     return str(subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip())
 
-def save(learner, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs):
+def save(learner, Pw_vars, Counts, Pw_costs, Count_costs):
     print("saving network...")
     if(args.data):
         save_name = args.data+"/learner.save"
@@ -19,7 +22,7 @@ def save(learner, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs):
         save_name = "learner.save"
         data_name = "data.save"
     learner.save(savefile = save_name)
-    data = {"Pw_vars":Pw_vars, "Qsigmas": Qsigmas, "Pw_costs":Pw_costs, "Qsigma_costs":Qsigma_costs}
+    data = {"Pw_vars":Pw_vars, "Counts": Counts, "Pw_costs":Pw_costs, "Count_costs":Count_costs}
     with open(data_name, 'wb') as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
     
@@ -70,18 +73,18 @@ if args.data and os.path.exists(args.data+'/data.save'):
     with open(args.data+'/data.save', 'rb') as f:
         data = pickle.load(f)
         Pw_costs = data['Pw_costs']
-        Qsigma_costs = data['Qsigma_costs']
-        Qsigmas = data['Qsigmas']
+        Count_costs = data['Count_costs']
+        Counts = data['Counts']
         Pw_vars = data['Pw_vars']
 else:
     Pw_costs = []
-    Qsigma_costs = []
-    Qsigmas = []
+    Count_costs = []
+    Counts = []
     Pw_vars = []
 
 numEpisodes = 1000000
 batch_size = 32
-boardsize = 13
+boardsize = 5
 
 
 #if load parameter is passed or a saved learner is available in the data directory load a network from a file
@@ -101,8 +104,8 @@ try:
     for i in range(len(Pw_costs), numEpisodes):
         num_step = 0
         Pw_cost_sum = 0
-        Qsigma_cost_sum = 0
-        Qsigma_sum = 0
+        Count_cost_sum = 0
+        Count_sum = 0
         Pw_var_sum = 0
         # #randomly choose who is to move from each position to increase variability in dataset
         # move_parity = np.random.choice([True,False])
@@ -113,13 +116,13 @@ try:
         #     gameW = np.copy(positions[index])
         # else:
         #     gameW = flip_game(positions[index])
-        gameW = new_game(13)
+        gameW = new_game(5)
         play_cell(gameW, action_to_cell(np.random.randint(0,25)), white)
         gameB = mirror_game(gameW)
         move_parity = False
         t = time.clock()
         while(winner(gameW)==None):
-            action, Pw, Qsigma = Agent.exploration_policy(gameW if move_parity else gameB)
+            action, Pw, Count = Agent.exploration_policy(gameW if move_parity else gameB)
             state1 = np.copy(gameW if move_parity else gameB)
             played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
             move_cell = action_to_cell(action)
@@ -139,37 +142,37 @@ try:
             Agent.update_memory(state1, action, state2, terminal)
             costs = Agent.learn(batch_size = batch_size)
             if(costs is not None):
-                Pw_cost, Qsigma_cost = costs
+                Pw_cost, Count_cost = costs
             else:
                 Pw_cost = 0
-                Qsigma_cost = 0
+                Count_cost = 0
 
             #update running sums for this episode
             num_step += 1
             Pw_var_sum += np.mean(((1-Pw)*Pw)[np.logical_not(played)])
-            Qsigma_sum += np.mean(Qsigma[np.logical_not(played)])
-            Qsigma_cost_sum += Qsigma_cost
+            Count_sum += np.mean(Count[np.logical_not(played)])
+            Count_cost_sum += Count_cost
             Pw_cost_sum += Pw_cost
 
             if(time.clock()-last_save > 60*save_time):
-                save(Agent, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs)
+                save(Agent, Pw_vars, Counts, Pw_costs, Count_costs)
                 last_save = time.clock()
         if(i%snapshot_interval == 0):
             snapshot(Agent)
-            save(Agent, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs)
+            save(Agent, Pw_vars, Counts, Pw_costs, Count_costs)
         run_time = time.clock() - t
-        print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(Pw_cost)+" Qsigma Cost: "+str(Qsigma_cost))
+        print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(0 if num_step == 0 else Pw_cost_sum/num_step)+" Count Cost: "+str(0 if num_step == 0 else Count_cost_sum/num_step))
 
         #log data for this episode
         if(num_step!=0):
             Pw_vars.append(Pw_var_sum/num_step)
-            Qsigmas.append(Qsigma_sum/num_step)
-            Qsigma_costs.append(Qsigma_cost_sum/num_step)
+            Counts.append(Count_sum/num_step)
+            Count_costs.append(Count_cost_sum/num_step)
             Pw_costs.append(Pw_cost_sum/num_step)
 
 except KeyboardInterrupt:
     #save snapshot of network if we interrupt so we can pickup again later
-    save(Agent, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs)
+    save(Agent, Pw_vars, Counts, Pw_costs, Count_costs)
     exit(1)
 
-save(Agent, Pw_vars, Qsigmas, Pw_costs, Qsigma_costs)
+save(Agent, Pw_vars, Counts, Pw_costs, Count_costs)

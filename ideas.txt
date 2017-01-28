@@ -1,2 +1,3 @@
 -Prehaps it would be more stable if you compute Pw for state along with conditional Pw for each move, that way you can simply back up state Pw
 -instead of conditional Pw for each move maybe just use a fractional amount of the state win probability without enforcing any statistical interpretation (but how would this be expected to converge correctly?, possible danger of state win just converging to 1 and each move probability capturing all the variability)
+-for pseudocounts you should train the count to go up for the action taken, but also to remain the same for all actions not taken in the current state
