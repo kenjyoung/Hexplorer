@@ -117,7 +117,7 @@ class Learner:
             W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
             b=lasagne.init.Constant(0),
             pos_dep_bias = False,
-            padding = 0,
+            padding = 1,
         )
         self.layers.append(l_1)
 
