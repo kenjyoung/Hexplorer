@@ -1,5 +1,8 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../")
 import numpy as np
-from learner import Learner
+from noexplore_learner import Learner
 from inputFormat import *
 import pickle
 import argparse
@@ -113,6 +116,9 @@ try:
             gameW = np.copy(positions[index])
         else:
             gameW = flip_game(positions[index])
+        # gameW = new_game(13)
+        # play_cell(gameW, action_to_cell(np.random.randint(0,25)), white)
+        move_parity = False
         gameB = mirror_game(gameW)
         t = time.clock()
         while(winner(gameW)==None):
