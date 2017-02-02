@@ -1,6 +1,3 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../")
 import theano
 from theano import tensor as T
 import numpy as np
@@ -16,11 +13,6 @@ from collections import OrderedDict
 def rargmax(vector):
     """ Argmax that chooses randomly among eligible maximum indices. """
     m = np.amax(vector)
-    indices = np.nonzero(vector == m)[0]
-    return pr.choice(indices)
-
-def rargmin(vector):
-    m = np.amin(vector)
     indices = np.nonzero(vector == m)[0]
     return pr.choice(indices)
 
@@ -77,7 +69,7 @@ class Learner:
         rho = 0.9, 
         epsilon = 1e-6, 
         mem_size = 100000,
-        boardsize = 5):
+        boardsize = 13):
         input_size = boardsize+2*padding
         input_shape = (num_channels,input_size,input_size)
 
@@ -86,9 +78,7 @@ class Learner:
         state_batch = T.tensor4('state_batch')
         action_batch = T.ivector('action_batch')
         mentor_Pws = T.tensor3('mentor_Pws')
-        mentor_Counts = T.tensor3('mentor_Counts')
         Pw_targets = T.fvector('Pw_targets')
-        Count_targets = T.matrix('Count_targets')
 
         #Load from file if given
         if(loadfile != None):
@@ -104,8 +94,8 @@ class Learner:
 
         self.opt_state = []
         self.layers = []
-        num_filters = 32
-        num_shared = 5
+        num_filters = 128
+        num_layers = 14
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
@@ -118,17 +108,17 @@ class Learner:
         l_1 = HexConvLayer(
             incoming = l_in, 
             num_filters=num_filters, 
-            radius = 2, 
+            radius = 3, 
             nonlinearity = lasagne.nonlinearities.leaky_rectify, 
             W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
             b=lasagne.init.Constant(0),
             pos_dep_bias = False,
-            padding = 0,
+            padding = 1,
         )
         self.layers.append(l_1)
 
-        #Initialize layers shared by Pw and Count networks
-        for i in range(num_shared-2):
+        #Initialize layers shared by Pw network
+        for i in range(num_layers-3):
             layer = HexConvLayer(
                 incoming = self.layers[-1], 
                 num_filters=num_filters, 
@@ -141,7 +131,7 @@ class Learner:
             )
             self.layers.append(layer)
 
-        final_shared_layer = HexConvLayer(
+        layer = HexConvLayer(
             incoming = self.layers[-1], 
             num_filters=num_filters, 
             radius = 2, 
@@ -151,10 +141,9 @@ class Learner:
             pos_dep_bias = False,
             padding = 0,
         )
-        self.layers.append(final_shared_layer)
-
+        self.layers.append(layer)
         Pw_output_layer = HexConvLayer(
-                incoming = final_shared_layer, 
+                incoming = self.layers[-1], 
                 num_filters=1, 
                 radius = 1, 
                 nonlinearity = lasagne.nonlinearities.sigmoid, 
@@ -166,22 +155,6 @@ class Learner:
         self.layers.append(Pw_output_layer)
         Pw_output = lasagne.layers.get_output(Pw_output_layer)
         Pw_output = Pw_output.reshape((Pw_output.shape[0], boardsize, boardsize))
-
-        self.layers.append(layer)
-        
-        Count_output_layer = HexConvLayer(
-                incoming = final_shared_layer, 
-                num_filters=1, 
-                radius = 1, 
-                nonlinearity = lasagne.nonlinearities.linear, 
-                W=lasagne.init.Constant(0), 
-                b=lasagne.init.Constant(0),
-                pos_dep_bias = True,
-                padding = 0,
-            )
-        self.layers.append(Count_output_layer)
-        Count_output = lasagne.layers.get_output(Count_output_layer)
-        Count_output = Count_output.reshape((Count_output.shape[0], boardsize, boardsize))
 
         #If a loadfile is given, use saved parameter values
         if(loadfile is not None):
@@ -205,39 +178,14 @@ class Learner:
             outputs = (Pw_output*(1-played)).flatten(2)
         )
 
-        #Build Count evaluate functions
-        self._evaluate_Count = theano.function(
-            [state],
-            givens = {state_batch : state.dimshuffle('x',0,1,2)},
-            outputs = (Count_output*(1-played)).flatten()
-        )
-        self._evaluate_Counts = theano.function(
-            [state_batch],
-            outputs = (Count_output*(1-played)).flatten(2)
-        )
-
-        #Build functions to evaluate both Count and Pw
-        self._evaluate = theano.function(
-            [state],
-            givens = {state_batch : state.dimshuffle('x',0,1,2)},
-            outputs = [(Pw_output*(1-played)).flatten(), (Count_output*(1-played)).flatten()]
-        )
-        self._evaluate_multi = theano.function(
-            [state_batch],
-            outputs = [(Pw_output*(1-played)).flatten(2), (Count_output*(1-played)).flatten(2)]
-        )
-
-        #Build update function for both Pw and Count
-        l2_penalty = regularize_layer_params(self.layers, l2)*1e-5
-
-        Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(action_batch.shape[0]),action_batch], Pw_targets), mode='mean')
+        #Build update function for Pw
+        Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch], Pw_targets), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
 
-        Count_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error((Count_output*(1-played)).flatten(), Count_targets.flatten()), mode='mean')
-        Count_params = [Count_output_layer.W, Count_output_layer.b]
+        l2_penalty = regularize_layer_params(self.layers, l2)*1e-7
 
-        loss = Pw_loss + Count_loss + l2_penalty
-        params = Pw_params + Count_params
+        loss = Pw_loss + l2_penalty
+        params = Pw_params
         if(loadfile is not None):
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon, opt_vals.pop(0))
             self.opt_state.append(accu)
@@ -246,17 +194,16 @@ class Learner:
             self.opt_state.append(accu)
 
         self._update = theano.function(
-            [state_batch, action_batch, Pw_targets, Count_targets],
+            [state_batch, action_batch, Pw_targets],
             updates = updates,
-            outputs = [Pw_loss, Count_loss]
+            outputs = [Pw_loss]
         )
 
-        #Build mentor function for both Pw and Count
+        #Build mentor function for Pw
         Pw_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(),mentor_Pws.flatten()))
-        Count_mentor_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Count_output.flatten(),mentor_Counts.flatten()))
 
-        loss = Pw_mentor_loss + Count_mentor_loss + l2_penalty
-        params = Pw_params + Count_params
+        loss = Pw_mentor_loss + l2_penalty
+        params = Pw_params
         if(loadfile is not None):
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon, opt_vals.pop(0))
             self.opt_state.append(accu)
@@ -265,9 +212,9 @@ class Learner:
             self.opt_state.append(accu)
 
         self._mentor = theano.function(
-            [state_batch, mentor_Pws, mentor_Counts],
+            [state_batch, mentor_Pws],
             updates = updates,
-            outputs = [Pw_mentor_loss, Count_mentor_loss]
+            outputs = [Pw_mentor_loss]
         )
 
     def update_memory(self, state1, action, state2, terminal):
@@ -279,48 +226,36 @@ class Learner:
             return
         states1, actions, states2, terminals = self.mem.sample_batch(batch_size)
 
-        Pw = self._evaluate_Pws(states2)
-        Count = self._evaluate_Counts(states1)
+        Pw2= self._evaluate_Pws(states2)
         #add a cap on the lowest possible value of losing probability
-        Pl =  np.maximum(1-Pw,0.00001)
-        joint = np.prod(Pl, axis=1)
+        Pl =  np.maximum(1-Pw2,0.00001)
+        joint = np.min(Pl, axis=1)
         #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
-        Count_targets = np.copy(Count).astype(theano.config.floatX)
-        Count_targets[np.arange(actions.shape[0]),actions] = Count[np.arange(actions.shape[0]),actions]+1/batch_size
-        return self._update(states1, actions, Pw_targets, Count_targets)
+        return self._update(states1, actions, Pw_targets)
 
-    def mentor(self, states, Pws, Counts):
+    def mentor(self, states, Pws):
         states = np.asarray(states, dtype=theano.config.floatX)
         Pws = np.asarray(Pws, dtype=theano.config.floatX)
-        Counts = np.asarray(Counts, dtype=theano.config.floatX)
-        return self._mentor(states, Pws, Counts)
+        return self._mentor(states, Pws)
 
     def exploration_policy(self, state, win_cutoff=0.0001):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
-        Pw, Count = self._evaluate(state)
+        Pw = self._evaluate_Pw(state)
 
         #epsilon greedy
         if np.random.rand()<0.1:
             action = np.random.choice(np.where(played==0)[0])
-            return action, Pw, Count
+            return action, Pw
 
-        Count[Count<0] = 0
-        total = np.sum(Count)
-        ucb = np.zeros(Count.shape)
-
-        if total > 0:
-            ucb[Count>1] = np.sqrt(2*np.log(total)/Count[Count>1])
-            ucb[Count<=0] = np.inf
-
-        values = np.maximum(0, Pw+ucb)
+        values = np.copy(Pw)
         #never select played values
-        values[played]=-1
+        values[played]=-2
         action = rargmax(values)
-        return action, Pw, Count
+        return action, Pw
 
     def optimization_policy(self, state):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
@@ -328,7 +263,7 @@ class Learner:
         Pw = self._evaluate_Pw(state)
         values = Pw
         #never select played values
-        values[played]=-1
+        values[played]=-2
         action = rargmax(values)
         return action
 
@@ -337,14 +272,6 @@ class Learner:
         Pw = self._evaluate_Pw(state)
         values = Pw
         return values
-
-    def win_prob_and_exp(self, state):
-        state = np.asarray(state, dtype=theano.config.floatX)
-        Pw, Count = self._evaluate(state)
-        Pw_values = Pw
-        Count_values = Count
-        return Pw_values, Count_values
-
 
     def save(self, savefile = 'learner.save'):
         params = lasagne.layers.get_all_param_values(self.layers)
