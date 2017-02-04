@@ -9,6 +9,7 @@ from layers import HexConvLayer
 from inputFormat import *
 import pickle
 from collections import OrderedDict
+from DensityModel import 
 
 def rargmax(vector):
     """ Argmax that chooses randomly among eligible maximum indices. """
