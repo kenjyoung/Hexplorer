@@ -67,6 +67,7 @@ class DensityModel:
         return total_log_probability
 
     def action_pseudocounts(self, state):
+        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         total_log_probability = 0.0
         for y in range(boardsize):
             for x in range(boardsize):
@@ -74,9 +75,10 @@ class DensityModel:
                 value = color(state, x, y) 
                 total_log_probability += self.state_models[x, y].update(context=context, symbol=value)
         context = full_context(state)
-        recording_probs = [math.exp(total_log_probability + self.action_model.recording_log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
-        probs = [math.exp(total_log_probability + self.action_model.log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
-        pseudocounts = [p*(1-p_r)/(p_r-p) for (p,p_r) in zip(probs, recording_probs)]
+        recording_probs = [0 if played[x] else math.exp(total_log_probability + self.action_model.recording_log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
+        probs = [0 if played[x] else math.exp(total_log_probability + self.action_model.log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
+        pseudocounts = np.array([0 if p==0 or p_r==0 else p*(1-p_r)/(p_r-p) for (p,p_r) in zip(probs, recording_probs)])
+        return pseudocounts
 
     def sample(self):
         state = new_game()

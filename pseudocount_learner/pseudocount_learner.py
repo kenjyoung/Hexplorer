@@ -9,7 +9,7 @@ from layers import HexConvLayer
 from inputFormat import *
 import pickle
 from collections import OrderedDict
-from DensityModel import 
+from DensityModel import DensityModel
 
 def rargmax(vector):
     """ Argmax that chooses randomly among eligible maximum indices. """
@@ -218,6 +218,9 @@ class Learner:
             outputs = [Pw_mentor_loss]
         )
 
+        #Build density model
+        self.counter = DensityModel()
+
     def update_memory(self, state1, action, state2, terminal):
         self.mem.add_entry(state1, action, state2, terminal)
 
@@ -237,6 +240,9 @@ class Learner:
         Pw_targets[terminals==1] = 1
         return self._update(states1, actions, Pw_targets)
 
+    def update_counter(self, state, action):
+        self.counter.update(state, action)
+
     def mentor(self, states, Pws):
         states = np.asarray(states, dtype=theano.config.floatX)
         Pws = np.asarray(Pws, dtype=theano.config.floatX)
@@ -246,17 +252,15 @@ class Learner:
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw = self._evaluate_Pw(state)
+        counts = self.counter.action_pseudocounts(state)
+        total = np.sum(counts)
+        UCB = np.sqrt(2*np.log(total)/counts)
 
-        #epsilon greedy
-        if np.random.rand()<0.1:
-            action = np.random.choice(np.where(played==0)[0])
-            return action, Pw
-
-        values = np.copy(Pw)
+        values = Pw+UCB
         #never select played values
-        values[played]=-2
+        values[played]=-1
         action = rargmax(values)
-        return action, Pw
+        return action, Pw, counts
 
     def optimization_policy(self, state):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
@@ -264,7 +268,7 @@ class Learner:
         Pw = self._evaluate_Pw(state)
         values = Pw
         #never select played values
-        values[played]=-2
+        values[played]=-1
         action = rargmax(values)
         return action
 
