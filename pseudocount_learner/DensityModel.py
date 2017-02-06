@@ -27,7 +27,7 @@ def full_context(state):
     return context
 
 def color(state, x, y):
-    color = 1 if state[white, x+padding+n[i][0], y+padding+n[i][1]] else 2 if state[black, x+padding+n[i][0], y+padding+n[i][1]] else 0
+    return 1 if state[white, x+padding+n[i][0], y+padding+n[i][1]] else 2 if state[black, x+padding+n[i][0], y+padding+n[i][1]] else 0
 
 
 class DensityModel:
@@ -61,10 +61,22 @@ class DensityModel:
             for x in range(boardsize):
                 context = self.context_functor(state, x, y)
                 value = color(state, x, y) 
-                total_log_probability += self.state_models[x, y].update(context=context, symbol=color)
+                total_log_probability += self.state_models[x, y].update(context=context, symbol=value)
         total_log_probability += self.action_model.update(context=full_context(state), symbol=action)
 
         return total_log_probability
+
+    def action_pseudocounts(self, state):
+        total_log_probability = 0.0
+        for y in range(boardsize):
+            for x in range(boardsize):
+                context = self.context_functor(state, x, y)
+                value = color(state, x, y) 
+                total_log_probability += self.state_models[x, y].update(context=context, symbol=value)
+        context = full_context(state)
+        recording_probs = [math.exp(total_log_probability + self.action_model.recording_log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
+        probs = [math.exp(total_log_probability + self.action_model.log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
+        pseudocounts = [p*(1-p_r)/(p_r-p) for (p,p_r) in zip(probs, recording_probs)]
 
     def sample(self):
         state = new_game()
