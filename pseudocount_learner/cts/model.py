@@ -68,12 +68,12 @@ class Estimator(object):
         self.count_total += 1.0
         return log_prob
 
-    def recording_log_prob(self, symbol):
+    def recording_prob(self, symbol):
         """returns log_prob after update but does not update"""
         count = self.counts.get(symbol, None)
         if count is None:
             count = self.counts[symbol] = self._model.symbol_prior
-        return math.log((count+1)/(self.count_total+1))
+        return (count+1)/(self.count_total+1)
 
     def sample(self, rejection_sampling):
         """Samples this estimator's PDF in linear time."""
@@ -182,7 +182,7 @@ class CTSNode(object):
 
     def log_prob(self, context, symbol):
         """Computes the log probability of the symbol in this subtree."""
-        lp_estimator = self.estimator.prob(symbol)
+        lp_estimator = math.log(self.estimator.prob(symbol))
 
         if len(context) > 0:
             # See update() above. More efficient is to avoid creating the
@@ -199,7 +199,7 @@ class CTSNode(object):
         """Computes the log probability of the symbol in this subtree after an update
         but without actually updating."""
 
-        lp_estimator = self.estimator.recording_log_prob(symbol)
+        lp_estimator = math.log(self.estimator.recording_prob(symbol))
         # If not a leaf node, recurse, creating nodes as needed.
         if len(context) > 0:
             # We recurse on the last element of the context vector.
@@ -208,10 +208,7 @@ class CTSNode(object):
 
             # This node predicts according to a mixture between its estimator
             # and its child.
-            lp_node = self.mix_prediction(lp_estimator, lp_child)
-
-            self.update_switching_weights(lp_estimator, lp_child)
-
+            lp_node = self.mix_recording_prediction(lp_estimator, lp_child)
             return lp_node
         else:
             # The log probability of staying at a leaf is log(1) = 0. This
@@ -287,27 +284,27 @@ class CTSNode(object):
                                        self._log_split_prob)
         return numerator - denominator
 
-    def mix_recording_predictions(self, lp_estimator, lp_child):
+    def mix_recording_prediction(self, lp_estimator, lp_child):
         log_alpha = self._model.log_alpha
         log_1_minus_alpha = self._model.log_1_minus_alpha
 
         if log_1_minus_alpha == 0:
             new_log_stay_prob = self._log_stay_prob + lp_estimator
             new_log_split_prob = self._log_split_prob + lp_child
+        else:
+            new_log_stay_prob = fastmath.log_add(log_1_minus_alpha
+                                                       + lp_estimator
+                                                       + self._log_stay_prob,
+                                                       log_alpha
+                                                       + lp_child
+                                                       + self._log_split_prob)
 
-        new_log_stay_prob = fastmath.log_add(log_1_minus_alpha
-                                                   + lp_estimator
-                                                   + self._log_stay_prob,
-                                                   log_alpha
-                                                   + lp_child
-                                                   + self._log_split_prob)
-
-        new_log_split_prob = fastmath.log_add(log_1_minus_alpha
-                                                    + lp_child
-                                                    + self._log_split_prob,
-                                                    log_alpha
-                                                    + lp_estimator
-                                                    + self._log_stay_prob)
+            new_log_split_prob = fastmath.log_add(log_1_minus_alpha
+                                                        + lp_child
+                                                        + self._log_split_prob,
+                                                        log_alpha
+                                                        + lp_estimator
+                                                        + self._log_stay_prob)
         numerator = fastmath.log_add(lp_estimator + new_log_stay_prob,
                                      lp_child + new_log_split_prob)
         denominator = fastmath.log_add(new_log_stay_prob,

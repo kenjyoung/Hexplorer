@@ -88,15 +88,17 @@ class Learner:
             params = data["params"]
             opt_vals = data["opt"]
             self.mem = data["mem"]
+            self.counter = data["counter"]
         else:
             params = None
             opt_vals = None
             self.mem = replay_memory(mem_size, input_shape)
+            self.counter = DensityModel()
 
         self.opt_state = []
         self.layers = []
-        num_filters = 128
-        num_layers = 14
+        num_filters = 16
+        num_layers = 5
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
@@ -218,9 +220,6 @@ class Learner:
             outputs = [Pw_mentor_loss]
         )
 
-        #Build density model
-        self.counter = DensityModel()
-
     def update_memory(self, state1, action, state2, terminal):
         self.mem.add_entry(state1, action, state2, terminal)
 
@@ -238,28 +237,33 @@ class Learner:
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
-        return self._update(states1, actions, Pw_targets)
-
-    def update_counter(self, state, action):
-        self.counter.update(state, action)
+        return self._update(states1, actions, Pw_targets)[0]
 
     def mentor(self, states, Pws):
         states = np.asarray(states, dtype=theano.config.floatX)
         Pws = np.asarray(Pws, dtype=theano.config.floatX)
-        return self._mentor(states, Pws)
+        return self._mentor(states, Pws)[0]
 
-    def exploration_policy(self, state, win_cutoff=0.0001):
+    def exploration_policy(self, state, win_cutoff=0.0001, update=True):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw = self._evaluate_Pw(state)
-        counts = self.counter.action_pseudocounts(state)
+        if update:
+            counts = self.counter.update_state(state)
+        else:
+            counts = self.counter.action_pseudocounts(state)
         total = np.sum(counts)
-        UCB = np.sqrt(2*np.log(total)/counts)
+        if total<=1:
+            UCB = np.zeros(Pw.shape)
+        else:
+            UCB = np.sqrt(2*np.log(total)/counts)
 
-        values = Pw+UCB
+        values = Pw + UCB
         #never select played values
-        values[played]=-1
+        values[played] =- 1
         action = rargmax(values)
+        if update:
+            self.counter.update_action(state, action)
         return action, Pw, counts
 
     def optimization_policy(self, state):
@@ -280,6 +284,6 @@ class Learner:
 
     def save(self, savefile = 'learner.save'):
         params = lasagne.layers.get_all_param_values(self.layers)
-        data = {'params':params, 'mem':self.mem, 'opt': [[x.get_value() for x in y] for y in self.opt_state]}
+        data = {'params':params, 'mem':self.mem, 'counter':self.counter, 'opt': [[x.get_value() for x in y] for y in self.opt_state]}
         with open(savefile, 'wb') as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
