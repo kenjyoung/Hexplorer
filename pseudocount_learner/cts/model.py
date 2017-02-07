@@ -473,7 +473,6 @@ class CTS(object):
         self._check_context(context)
         return self._root.recording_log_prob(context, symbol)
 
-
     def sample(self, context, rejection_sampling=True):
         """Samples a symbol from the model.
 

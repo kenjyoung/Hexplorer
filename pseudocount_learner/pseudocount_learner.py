@@ -3,6 +3,7 @@ from theano import tensor as T
 import numpy as np
 import random as pr
 import lasagne
+import time
 from lasagne.regularization import regularize_layer_params, l2
 from replay_memory import replay_memory
 from layers import HexConvLayer
@@ -88,7 +89,10 @@ class Learner:
             params = data["params"]
             opt_vals = data["opt"]
             self.mem = data["mem"]
-            self.counter = data["counter"]
+            try:
+                self.counter = data["counter"]
+            except KeyError:
+                self.counter = DensityModel()
         else:
             params = None
             opt_vals = None
@@ -97,7 +101,7 @@ class Learner:
 
         self.opt_state = []
         self.layers = []
-        num_filters = 16
+        num_filters = 4
         num_layers = 5
 
         #Initialize input layer

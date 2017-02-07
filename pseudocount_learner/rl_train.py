@@ -13,7 +13,7 @@ import subprocess
 def get_git_hash():
     return str(subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip())
 
-def save(learner, Pw_vars, Counts, Pw_costs):
+def save(learner, Pw_vars, Counts, Count_spreads, Pw_costs):
     print("saving network...")
     if(args.data):
         save_name = args.data+"/learner.save"
@@ -22,7 +22,7 @@ def save(learner, Pw_vars, Counts, Pw_costs):
         save_name = "learner.save"
         data_name = "data.save"
     learner.save(savefile = save_name)
-    data = {"Pw_vars":Pw_vars, "Counts": Counts, "Pw_costs":Pw_costs}
+    data = {"Pw_vars":Pw_vars, "Counts": Counts, "Count_spreads": Count_spreads, "Pw_costs":Pw_costs}
     with open(data_name, 'wb') as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
     
@@ -74,10 +74,12 @@ if args.data and os.path.exists(args.data+'/data.save'):
         data = pickle.load(f)
         Pw_costs = data['Pw_costs']
         Counts = data['Counts']
+        Count_spreads = data['Count_spreads']
         Pw_vars = data['Pw_vars']
 else:
     Pw_costs = []
     Counts = []
+    Count_spreads = []
     Pw_vars = []
 
 numEpisodes = 1000000
@@ -101,6 +103,7 @@ try:
         num_step = 0
         Pw_cost_sum = 0
         Count_sum = 0
+        Count_spread_sum = 0
         Pw_var_sum = 0
         # #randomly choose who is to move from each position to increase variability in dataset
         # move_parity = np.random.choice([True,False])
@@ -143,6 +146,7 @@ try:
             num_step += 1
             Pw_var_sum += np.mean(((1-Pw)*Pw)[np.logical_not(played)])
             Count_sum += np.mean(Count[np.logical_not(played)])
+            Count_spread_sum += np.max(Count[np.logical_not(played)])-np.min(Count[np.logical_not(played)])
             Pw_cost_sum += Pw_cost
 
             if(time.clock()-last_save > 60*save_time):
@@ -150,7 +154,7 @@ try:
                 last_save = time.clock()
         if(i%snapshot_interval == 0):
             snapshot(Agent)
-            save(Agent, Pw_vars, Counts, Pw_costs)
+            save(Agent, Pw_vars, Counts, Count_spreads, Pw_costs)
         run_time = time.clock() - t
         print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(0 if num_step == 0 else Pw_cost_sum/num_step))
 
@@ -158,11 +162,12 @@ try:
         if(num_step!=0):
             Pw_vars.append(Pw_var_sum/num_step)
             Counts.append(Count_sum/num_step)
+            Count_spreads.append(Count_spread_sum/num_step)
             Pw_costs.append(Pw_cost_sum/num_step)
 
 except KeyboardInterrupt:
     #save snapshot of network if we interrupt so we can pickup again later
-    save(Agent, Pw_vars, Counts, Pw_costs)
+    save(Agent, Pw_vars, Counts, Count_spreads, Pw_costs)
     exit(1)
 
-save(Agent, Pw_vars, Counts, Pw_costs)
+save(Agent, Pw_vars, Counts, Count_spreads, Pw_costs)
