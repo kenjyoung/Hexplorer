@@ -67,17 +67,11 @@ class DensityModel:
                 total_log_probability += self.state_models[x, y].update(context=context, symbol=value)
                 total_log_recording_probability += self.state_models[x, y].log_prob(context=context, symbol=value)
         context = full_context(state)
-        t = time.clock()
-        recording_probs = [0 if played[x] else math.exp(total_log_recording_probability + self.action_model.recording_log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
-        recording_time = time.clock()-t
-        print("recording_time: "+str(recording_time))
-        t = time.clock()
-        probs = [0 if played[x] else math.exp(total_log_probability + self.action_model.log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
-        prob_time = time.clock()-t
-        print("prob_time: "+str(prob_time))
-        pseudocounts = np.array([0 if p==0 or p_r==0 else p*(1-p_r)/(p_r-p) for (p,p_r) in zip(probs, recording_probs)])
-        pseudocount_time = time.clock()-t
-        print("pseudocount_time: "+str(pseudocount_time))
+        actions = np.nonzero(played == 0)[0]
+        recording_probs = np.exp(total_log_recording_probability + self.action_model.recording_log_probs(context=context, symbols=actions))
+        probs = np.exp(total_log_probability + self.action_model.log_probs(context=context, symbols=actions))
+        pseudocounts = np.zeros((boardsize*boardsize))
+        pseudocounts[actions]=probs*(1-recording_probs)/(recording_probs-probs)
         return pseudocounts
 
     def update_action(self, state, action):

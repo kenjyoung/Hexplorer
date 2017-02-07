@@ -92,12 +92,12 @@ class Learner:
             try:
                 self.counter = data["counter"]
             except KeyError:
-                self.counter = DensityModel()
+                self.counter = DensityModel(state_alphabet=[0,1,2], action_alphabet=[i for i in range(boardsize*boardsize)])
         else:
             params = None
             opt_vals = None
             self.mem = replay_memory(mem_size, input_shape)
-            self.counter = DensityModel()
+            self.counter = DensityModel(state_alphabet=[0,1,2], action_alphabet=[i for i in range(boardsize*boardsize)])
 
         self.opt_state = []
         self.layers = []

@@ -11,6 +11,7 @@ performance.
 import math
 import random
 import sys
+import numpy as np
 
 import cts.fastmath as fastmath
 
@@ -60,6 +61,17 @@ class Estimator(object):
 
         return count / self.count_total
 
+    def probs(self, symbols):
+        """returns log_prob after update but does not update for each symbol in symbols"""
+        counts = []
+        for symbol in symbols:
+            count = self.counts.get(symbol, None)
+            if count is None:
+                count = self.counts[symbol] = self._model.symbol_prior
+            counts.append(count)
+        counts = np.array(counts)
+        return counts/self.count_total
+
     def update(self, symbol):
         """Updates our count for the given symbol."""
         log_prob = math.log(self.prob(symbol))
@@ -74,6 +86,17 @@ class Estimator(object):
         if count is None:
             count = self.counts[symbol] = self._model.symbol_prior
         return (count+1)/(self.count_total+1)
+
+    def recording_probs(self, symbols):
+        """returns log_prob after update but does not update for each symbol in symbols"""
+        counts = []
+        for symbol in symbols:
+            count = self.counts.get(symbol, None)
+            if count is None:
+                count = self.counts[symbol] = self._model.symbol_prior
+            counts.append(count)
+        counts = np.array(counts)
+        return (counts + 1)/(self.count_total + 1)
 
     def sample(self, rejection_sampling):
         """Samples this estimator's PDF in linear time."""
@@ -195,6 +218,21 @@ class CTSNode(object):
         else:
             return lp_estimator
 
+    def log_probs(self, context, symbols):
+        """Computes the log probability of the symbol in this subtree."""
+        lp_estimator = np.log(self.estimator.probs(symbols))
+
+        if len(context) > 0:
+            # See update() above. More efficient is to avoid creating the
+            # nodes and use a default node, but we omit this for clarity.
+            child = self.get_child(context[-1])
+
+            lp_child = child.log_probs(context[:-1], symbols)
+
+            return self.mix_predictions(lp_estimator, lp_child)
+        else:
+            return lp_estimator
+
     def recording_log_prob(self, context, symbol):
         """Computes the log probability of the symbol in this subtree after an update
         but without actually updating."""
@@ -215,6 +253,25 @@ class CTSNode(object):
             # isn't actually used in the code, tho.
             self._log_stay_prob = 0.0
             return lp_estimator
+
+    def recording_log_probs(self, context, symbols):
+        lp_estimator = np.log(self.estimator.recording_probs(symbols))
+        # If not a leaf node, recurse, creating nodes as needed.
+        if len(context) > 0:
+            # We recurse on the last element of the context vector.
+            child = self.get_child(context[-1])
+            lp_child = child.recording_log_probs(context[:-1], symbols)
+
+            # This node predicts according to a mixture between its estimator
+            # and its child.
+            lp_node = self.mix_recording_predictions(lp_estimator, lp_child)
+            return lp_node
+        else:
+            # The log probability of staying at a leaf is log(1) = 0. This
+            # isn't actually used in the code, tho.
+            self._log_stay_prob = 0.0
+            return lp_estimator
+
 
     def sample(self, context, rejection_sampling):
         """Samples a symbol in the given context."""
@@ -284,6 +341,13 @@ class CTSNode(object):
                                        self._log_split_prob)
         return numerator - denominator
 
+    def mix_predictions(self, lp_estimator, lp_child):
+        numerator = fastmath.vector_log_add(lp_estimator + self._log_stay_prob,
+                                     lp_child + self._log_split_prob)
+        denominator = fastmath.log_add(self._log_stay_prob,
+                                       self._log_split_prob)
+        return numerator - denominator
+
     def mix_recording_prediction(self, lp_estimator, lp_child):
         log_alpha = self._model.log_alpha
         log_1_minus_alpha = self._model.log_1_minus_alpha
@@ -308,6 +372,33 @@ class CTSNode(object):
         numerator = fastmath.log_add(lp_estimator + new_log_stay_prob,
                                      lp_child + new_log_split_prob)
         denominator = fastmath.log_add(new_log_stay_prob,
+                                       new_log_split_prob)
+        return numerator - denominator
+
+    def mix_recording_predictions(self, lp_estimator, lp_child):
+        log_alpha = self._model.log_alpha
+        log_1_minus_alpha = self._model.log_1_minus_alpha
+
+        if log_1_minus_alpha == 0:
+            new_log_stay_prob = self._log_stay_prob + lp_estimator
+            new_log_split_prob = self._log_split_prob + lp_child
+        else:
+            new_log_stay_prob = fastmath.vector_log_add(log_1_minus_alpha
+                                                       + lp_estimator
+                                                       + self._log_stay_prob,
+                                                       log_alpha
+                                                       + lp_child
+                                                       + self._log_split_prob)
+
+            new_log_split_prob = fastmath.vector_log_add(log_1_minus_alpha
+                                                        + lp_child
+                                                        + self._log_split_prob,
+                                                        log_alpha
+                                                        + lp_estimator
+                                                        + self._log_stay_prob)
+        numerator = fastmath.vector_log_add(lp_estimator + new_log_stay_prob,
+                                     lp_child + new_log_split_prob)
+        denominator = fastmath.vector_log_add(new_log_stay_prob,
                                        new_log_split_prob)
         return numerator - denominator
 
@@ -467,11 +558,19 @@ class CTS(object):
         self._check_context(context)
         return self._root.log_prob(context, symbol)
 
+    def log_probs(self, context, symbols):
+        self._check_context(context)
+        return self._root.log_probs(context, symbols)
+
     def recording_log_prob(self, context, symbol):
         """Computes the log probability of the symbol
         after an update, but without actually updating"""
         self._check_context(context)
         return self._root.recording_log_prob(context, symbol)
+
+    def recording_log_probs(self, context, symbols):
+        self._check_context(context)
+        return self._root.recording_log_probs(context, symbols)
 
     def sample(self, context, rejection_sampling=True):
         """Samples a symbol from the model.
