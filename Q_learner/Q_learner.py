@@ -234,12 +234,12 @@ class Learner:
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
-        return self._update(states1, actions, Pw_targets)
+        return self._update(states1, actions, Pw_targets)[0]
 
     def mentor(self, states, Pws):
         states = np.asarray(states, dtype=theano.config.floatX)
         Pws = np.asarray(Pws, dtype=theano.config.floatX)
-        return self._mentor(states, Pws)
+        return self._mentor(states, Pws)[0]
 
     def exploration_policy(self, state, win_cutoff=0.0001):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()

@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../")
 import numpy as np
-from noexplore_learner import Learner
+from Q_learner import Learner
 from inputFormat import *
 import pickle
 import argparse
@@ -56,7 +56,7 @@ save_time = 60
 snapshot_interval = 1000
 
 print("Loading starting positions... ")
-datafile = open("data/scoredPositionsFull.npz", 'rb')
+datafile = open("../data/scoredPositionsFull.npz", 'rb')
 data = np.load(datafile)
 positions = data['positions']
 datafile.close()
