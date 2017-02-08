@@ -1,14 +1,14 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../")
-sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../pseudocount_baseline")
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../Q_learner")
 from gamestate import gamestate
 from copy import copy, deepcopy
 import numpy as np
 import random as pr
 from inputFormat import *
 from stateToInput import stateToInput
-from learner import Learner
+from Q_learner import Learner
 
 def rargmax(vector):
     """ Argmax that chooses randomly among eligible maximum indices. """
