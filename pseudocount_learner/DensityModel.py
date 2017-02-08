@@ -50,14 +50,13 @@ class DensityModel:
         
         for y in range(boardsize):
             for x in range(boardsize):
-                self.state_models[x, y] = model.CTS(context_length=context_length, alphabet=state_alphabet)
+                self.state_models[x, y] = model.CTS(context_length=context_length, alphabet=set(state_alphabet))
 
-        self.action_model = model.CTS(context_length=boardsize*boardsize, alphabet=action_alphabet)
+        self.action_model = model.CTS(context_length=boardsize*boardsize, alphabet=set(action_alphabet))
         
         self.context_functor = context_functor
 
-    def update_state(self, state):
-        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
+    def update(self, state):
         total_log_probability = 0.0
         total_log_recording_probability = 0.0
         for y in range(boardsize):
@@ -66,30 +65,10 @@ class DensityModel:
                 value = color(state, x, y)
                 total_log_probability += self.state_models[x, y].update(context=context, symbol=value)
                 total_log_recording_probability += self.state_models[x, y].log_prob(context=context, symbol=value)
-        context = full_context(state)
-        actions = np.nonzero(played == 0)[0]
-        recording_probs = np.exp(total_log_recording_probability + self.action_model.recording_log_probs(context=context, symbols=actions))
-        probs = np.exp(total_log_probability + self.action_model.log_probs(context=context, symbols=actions))
-        pseudocounts = np.zeros((boardsize*boardsize))
-        pseudocounts[actions]=probs*(1-recording_probs)/(recording_probs-probs)
-        return pseudocounts
-
-    def update_action(self, state, action):
-        self.action_model.update(context=full_context(state), symbol=action)
-
-    def action_pseudocounts(self, state):
-        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
-        total_log_probability = 0.0
-        for y in range(boardsize):
-            for x in range(boardsize):
-                context = self.context_functor(state, x, y)
-                value = color(state, x, y) 
-                total_log_probability += self.state_models[x, y].recording_log_prob(context=context, symbol=value)
-        context = full_context(state)
-        recording_probs = [0 if played[x] else math.exp(total_log_probability + self.action_model.recording_log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
-        probs = [0 if played[x] else math.exp(total_log_probability + self.action_model.log_prob(context=context, symbol=x)) for x in range(boardsize*boardsize)]
-        pseudocounts = np.array([0 if p==0 or p_r==0 else p*(1-p_r)/(p_r-p) for (p,p_r) in zip(probs, recording_probs)])
-        return pseudocounts
+        p = np.exp(total_log_probability)
+        p_r = np.exp(total_log_recording_probability)
+        pseudocount = p*(1-p_r)/(p_r-p)
+        return pseudocount
 
     def sample(self):
         state = new_game()

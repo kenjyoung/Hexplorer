@@ -16,7 +16,6 @@ with open(args.data_file, 'rb') as f:
     data = pickle.load(f)
     Pw_costs = data['Pw_costs']
     Counts = data['Counts']
-    Count_spreads = data['Count_spreads']
     Pw_vars = data['Pw_vars']
     plt.figure(0)
     plt.plot(running_mean(Pw_costs, args.aggregation))
@@ -29,11 +28,6 @@ with open(args.data_file, 'rb') as f:
     plt.xlabel('Episode')
     plt.draw()
     plt.figure(2)
-    plt.plot(running_mean(Count_spreads, args.aggregation))
-    plt.ylabel('Count Spread')
-    plt.xlabel('Episode')
-    plt.draw()
-    plt.figure(3)
     plt.plot(running_mean(Pw_vars, args.aggregation))
     plt.ylabel('Pw Variance')
     plt.xlabel('Episode')

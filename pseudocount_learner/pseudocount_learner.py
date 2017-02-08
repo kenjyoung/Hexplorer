@@ -3,9 +3,8 @@ from theano import tensor as T
 import numpy as np
 import random as pr
 import lasagne
-import time
 from lasagne.regularization import regularize_layer_params, l2
-from replay_memory import replay_memory
+from pseudocount_replay_memory import replay_memory
 from layers import HexConvLayer
 from inputFormat import *
 import pickle
@@ -153,7 +152,7 @@ class Learner:
                 incoming = self.layers[-1], 
                 num_filters=1, 
                 radius = 1, 
-                nonlinearity = lasagne.nonlinearities.sigmoid, 
+                nonlinearity = T.nnet.softplus, 
                 W=lasagne.init.HeNormal(1), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = True,
@@ -224,23 +223,26 @@ class Learner:
             outputs = [Pw_mentor_loss]
         )
 
-    def update_memory(self, state1, action, state2, terminal):
-        self.mem.add_entry(state1, action, state2, terminal)
+    def update_memory(self, state1, action, state2, reward, terminal):
+        self.mem.add_entry(state1, action, state2, reward, terminal)
+
+    def update_count(self, state):
+        return self.counter.update(state)
 
     def learn(self, batch_size):
         #Do nothing if we don't yet have enough entries in memory for a full batch
         if(self.mem.size < batch_size):
             return
-        states1, actions, states2, terminals = self.mem.sample_batch(batch_size)
+        states1, actions, states2, rewards, terminals = self.mem.sample_batch(batch_size)
 
-        Pw2= self._evaluate_Pws(states2)
+        Pw2 = self._evaluate_Pws(states2)
         #add a cap on the lowest possible value of losing probability
         Pl =  np.maximum(1-Pw2,0.00001)
         joint = np.min(Pl, axis=1)
         #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
-        Pw_targets[terminals==0] = joint[terminals==0]
-        Pw_targets[terminals==1] = 1
+        Pw_targets[terminals==0] = joint[terminals==0]+rewards[terminals==0]
+        Pw_targets[terminals==1] = rewards[terminals==1]
         return self._update(states1, actions, Pw_targets)[0]
 
     def mentor(self, states, Pws):
@@ -248,27 +250,21 @@ class Learner:
         Pws = np.asarray(Pws, dtype=theano.config.floatX)
         return self._mentor(states, Pws)[0]
 
-    def exploration_policy(self, state, win_cutoff=0.0001, update=True):
+    def exploration_policy(self, state, win_cutoff=0.0001):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
-        Pw = self._evaluate_Pw(state)
-        if update:
-            counts = self.counter.update_state(state)
-        else:
-            counts = self.counter.action_pseudocounts(state)
-        total = np.sum(counts)
-        if total<=1:
-            UCB = np.zeros(Pw.shape)
-        else:
-            UCB = np.sqrt(2*np.log(total)/counts)
+        Q = self._evaluate_Pw(state)
 
-        values = Pw + UCB
+        #epsilon greedy
+        if np.random.rand()<0.1:
+            action = np.random.choice(np.where(played==0)[0])
+            return action, Q
+
+        values = np.copy(Q)
         #never select played values
-        values[played] =- 1
+        values[played]=-1
         action = rargmax(values)
-        if update:
-            self.counter.update_action(state, action)
-        return action, Pw, counts
+        return action, Q
 
     def optimization_policy(self, state):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
