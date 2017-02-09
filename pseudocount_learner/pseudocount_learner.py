@@ -80,6 +80,7 @@ class Learner:
         action_batch = T.ivector('action_batch')
         mentor_Pws = T.tensor3('mentor_Pws')
         Pw_targets = T.fvector('Pw_targets')
+        exp_targets = T.fvector('exp_targets')
 
         #Load from file if given
         if(loadfile != None):
@@ -101,10 +102,9 @@ class Learner:
         self.opt_state = []
         self.layers = []
         num_filters = 4
-        num_shared = 5
+        num_shared = 2
         num_win = 3
         num_exp = 3
-
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
@@ -250,25 +250,27 @@ class Learner:
         #don't effect updates and evaluations
         played = 1-(1-state_batch[:,white,padding:-padding,padding:-padding])*(1-state_batch[:,black,padding:-padding,padding:-padding])
 
-        #Build Pw evaluate functions
-        self._evaluate_Pw = theano.function(
+        #Build functions to evaluate both exp and Pw
+        self._evaluate = theano.function(
             [state],
             givens = {state_batch : state.dimshuffle('x',0,1,2)},
-            outputs = (Pw_output*(1-played)).flatten()
+            outputs = [(Pw_output*(1-played)).flatten(), (Qsigma_output*(1-played)).flatten()]
         )
-        self._evaluate_Pws = theano.function(
+        self._evaluate_multi = theano.function(
             [state_batch],
-            outputs = (Pw_output*(1-played)).flatten(2)
+            outputs = [(Pw_output*(1-played)).flatten(2), (Qsigma_output*(1-played)).flatten(2)]
         )
 
-        #Build update function for Pw
+        #Build update function for both exp and Pw
         Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch], Pw_targets), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
+        exp_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(exp_output.flatten(2)[T.arange(exp_output.shape[0]),action_batch], exp_targets), mode='mean')
+        exp_params = lasagne.layers.get_all_params(exp_output_layer)
 
         l2_penalty = regularize_layer_params(self.layers, l2)*1e-7
 
-        loss = Pw_loss + l2_penalty
-        params = Pw_params
+        loss = Pw_loss + exp_loss + l2_penalty
+        params = Pw_params + exp_params
         if(loadfile is not None):
             updates, accu = rmsprop(loss, params, alpha, rho, epsilon, opt_vals.pop(0))
             self.opt_state.append(accu)
@@ -312,14 +314,19 @@ class Learner:
             return
         states1, actions, states2, rewards, terminals = self.mem.sample_batch(batch_size)
 
-        Pw2 = self._evaluate_Pws(states2)
+        Pw2, exp2 = self._evaluate_multi(states2)
         #add a cap on the lowest possible value of losing probability
         Pl =  np.maximum(1-Pw2,0.00001)
         joint = np.min(Pl, axis=1)
+        exp_max = exp2[T.arange(Pw_targets.shape[0]),np.argmax(Pw2+exp2, axis=1)]
+
         #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
-        Pw_targets[terminals==0] = joint[terminals==0]+rewards[terminals==0]
-        Pw_targets[terminals==1] = rewards[terminals==1]
+        Pw_targets[terminals==0] = joint[terminals==0]
+        Pw_targets[terminals==1] = 1
+        exp_targets = np.zeros(terminals.size).astype(theano.config.floatX)
+        exp_targets[terminals==0] = rewards[terminals==0]+exp_max[terminals==0]
+        exp_targets[terminals==1] = rewards[terminals==1]
         return self._update(states1, actions, Pw_targets)[0]
 
     def mentor(self, states, Pws):

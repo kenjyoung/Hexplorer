@@ -127,10 +127,8 @@ try:
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
             if(not winner(gameW)==None):
                 terminal = 1
-                reward = 1
             else:
                 terminal = 0
-                reward = 0
             #randomly flip states to capture symmetry
             if(np.random.choice([True,False])):
                 state2 = np.copy(gameB if move_parity else gameW)
@@ -138,7 +136,7 @@ try:
                 state2 = flip_game(gameB if move_parity else gameW)
             move_parity = not move_parity
             pseudocount = Agent.update_count(state2)
-            reward+=exploration_factor*1/np.sqrt(pseudocount+0.01)
+            reward=exploration_factor*1/np.sqrt(pseudocount+0.01)
             Agent.update_memory(state1, action, state2, reward, terminal)
             Pw_cost = Agent.learn(batch_size = batch_size)
             if Pw_cost is None:
