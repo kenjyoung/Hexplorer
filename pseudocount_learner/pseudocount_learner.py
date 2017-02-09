@@ -101,7 +101,10 @@ class Learner:
         self.opt_state = []
         self.layers = []
         num_filters = 4
-        num_layers = 5
+        num_shared = 5
+        num_win = 3
+        num_exp = 3
+
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
@@ -123,8 +126,8 @@ class Learner:
         )
         self.layers.append(l_1)
 
-        #Initialize layers shared by Pw network
-        for i in range(num_layers-3):
+        #Initialize layers shared by Pw and exp networks
+        for i in range(num_shared-1):
             layer = HexConvLayer(
                 incoming = self.layers[-1], 
                 num_filters=num_filters, 
@@ -136,7 +139,32 @@ class Learner:
                 padding = 1,
             )
             self.layers.append(layer)
+        final_shared_layer = self.layers[-1]
 
+        #Initialize layers unique to win network
+        layer = HexConvLayer(
+                incoming = final_shared_layer, 
+                num_filters=num_filters, 
+                radius = 2, 
+                nonlinearity = lasagne.nonlinearities.leaky_rectify, 
+                W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
+                b=lasagne.init.Constant(0),
+                pos_dep_bias = False,
+                padding = 1,
+            )
+        self.layers.append(layer)
+        for i in range(num_win-3):
+            layer = HexConvLayer(
+                incoming = self.layers[-1], 
+                num_filters=num_filters, 
+                radius = 2, 
+                nonlinearity = lasagne.nonlinearities.leaky_rectify, 
+                W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
+                b=lasagne.init.Constant(0),
+                pos_dep_bias = False,
+                padding = 1,
+            )
+            self.layers.append(layer)
         layer = HexConvLayer(
             incoming = self.layers[-1], 
             num_filters=num_filters, 
@@ -152,7 +180,7 @@ class Learner:
                 incoming = self.layers[-1], 
                 num_filters=1, 
                 radius = 1, 
-                nonlinearity = T.nnet.softplus, 
+                nonlinearity = lasagne.nonlinearities.sigmoid, 
                 W=lasagne.init.HeNormal(1), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = True,
@@ -161,6 +189,55 @@ class Learner:
         self.layers.append(Pw_output_layer)
         Pw_output = lasagne.layers.get_output(Pw_output_layer)
         Pw_output = Pw_output.reshape((Pw_output.shape[0], boardsize, boardsize))
+
+        #Initialize layers unique to exp network
+        layer = HexConvLayer(
+                incoming = final_shared_layer, 
+                num_filters=num_filters, 
+                radius = 2, 
+                nonlinearity = lasagne.nonlinearities.leaky_rectify, 
+                W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
+                b=lasagne.init.Constant(0),
+                pos_dep_bias = False,
+                padding = 1,
+            )
+        self.layers.append(layer)
+        for i in range(num_exp-3):
+            layer = HexConvLayer(
+                incoming = self.layers[-1], 
+                num_filters=num_filters, 
+                radius = 2, 
+                nonlinearity = lasagne.nonlinearities.leaky_rectify, 
+                W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
+                b=lasagne.init.Constant(0),
+                pos_dep_bias = False,
+                padding = 1,
+            )
+            self.layers.append(layer)
+        layer = HexConvLayer(
+            incoming = self.layers[-1], 
+            num_filters=num_filters, 
+            radius = 2, 
+            nonlinearity = lasagne.nonlinearities.leaky_rectify, 
+            W=lasagne.init.HeNormal(np.sqrt(2/(1+0.01**2))), 
+            b=lasagne.init.Constant(0),
+            pos_dep_bias = False,
+            padding = 0,
+        )
+        self.layers.append(layer)
+        exp_output_layer = HexConvLayer(
+                incoming = self.layers[-1], 
+                num_filters=1, 
+                radius = 1, 
+                nonlinearity = T.nnet.softplus, 
+                W=lasagne.init.HeNormal(1), 
+                b=lasagne.init.Constant(0),
+                pos_dep_bias = True,
+                padding = 0,
+            )
+        self.layers.append(exp_output_layer)
+        exp_output = lasagne.layers.get_output(exp_output_layer)
+        exp_output = exp_output.reshape((exp_output.shape[0], boardsize, boardsize))
 
         #If a loadfile is given, use saved parameter values
         if(loadfile is not None):
