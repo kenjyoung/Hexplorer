@@ -13,7 +13,7 @@ import subprocess
 def get_git_hash():
     return str(subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip())
 
-def save(learner, Pw_vars, Counts, Pw_costs):
+def save(learner, Pw_vars, Counts, Exp_scores, Exp_costs, Pw_costs):
     print("saving network...")
     if(args.data):
         save_name = args.data+"/learner.save"
@@ -22,7 +22,7 @@ def save(learner, Pw_vars, Counts, Pw_costs):
         save_name = "learner.save"
         data_name = "data.save"
     learner.save(savefile = save_name)
-    data = {"Pw_vars":Pw_vars, "Counts": Counts, "Pw_costs":Pw_costs}
+    data = {"Pw_vars" : Pw_vars, "Counts" : Counts, "Exp_scores" : Exp_scores, "Exp_costs" : Exp_costs,  "Pw_costs" : Pw_costs}
     with open(data_name, 'wb') as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
     
@@ -74,15 +74,18 @@ if args.data and os.path.exists(args.data+'/data.save'):
         data = pickle.load(f)
         Pw_costs = data['Pw_costs']
         Counts = data['Counts']
+        Exp_scores = data['Exp_scores'] 
+        Exp_costs = data['Exp_costs']
         Pw_vars = data['Pw_vars']
 else:
     Pw_costs = []
     Counts = []
+    Exp_scores = []
+    Exp_costs = []
     Pw_vars = []
 
 numEpisodes = 1000000
 batch_size = 32
-exploration_factor = 0.05
 
 #if load parameter is passed or a saved learner is available in the data directory load a network from a file
 if args.load:
@@ -102,6 +105,8 @@ try:
         num_step = 0
         Pw_cost_sum = 0
         Count_sum = 0
+        Exp_score_sum = 0
+        Exp_cost_sum = 0
         Pw_var_sum = 0
         # #randomly choose who is to move from each position to increase variability in dataset
         # move_parity = np.random.choice([True,False])
@@ -118,7 +123,7 @@ try:
         move_parity = False
         t = time.clock()
         while(winner(gameW)==None):
-            action, Pw = Agent.exploration_policy(gameW if move_parity else gameB)
+            action, Pw, exp = Agent.exploration_policy(gameW if move_parity else gameB)
             state1 = np.copy(gameW if move_parity else gameB)
             played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
             move_cell = action_to_cell(action)
@@ -136,36 +141,43 @@ try:
                 state2 = flip_game(gameB if move_parity else gameW)
             move_parity = not move_parity
             pseudocount = Agent.update_count(state2)
-            reward=exploration_factor*1/np.sqrt(pseudocount+0.01)
+            reward = 1/np.sqrt(pseudocount+0.01)
             Agent.update_memory(state1, action, state2, reward, terminal)
-            Pw_cost = Agent.learn(batch_size = batch_size)
-            if Pw_cost is None:
+            costs = Agent.learn(batch_size = batch_size)
+            if costs is None:
                 Pw_cost = 0
+                exp_cost = 0
+            else:
+                Pw_cost, exp_cost = costs
 
             #update running sums for this episode
             num_step += 1
             Pw_var_sum += np.mean(((1-Pw)*Pw)[np.logical_not(played)])
+            Exp_score_sum += np.max(exp[np.logical_not(played)])
+            Exp_cost_sum += exp_cost
             Count_sum += pseudocount
             Pw_cost_sum += Pw_cost
 
-            if(time.clock()-last_save > 60*save_time):
-                save(Agent, Pw_vars, Counts, Pw_costs)
+            if(time.clock() - last_save > 60*save_time):
+                save(Agent, Pw_vars, Counts, Exp_scores, Exp_costs, Pw_costs)
                 last_save = time.clock()
         if(i%snapshot_interval == 0):
             snapshot(Agent)
-            save(Agent, Pw_vars, Counts, Pw_costs)
+            save(Agent, Pw_vars, Counts, Exp_scores, Exp_costs, Pw_costs)
         run_time = time.clock() - t
         print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(0 if num_step == 0 else Pw_cost_sum/num_step))
 
         #log data for this episode
-        if(num_step!=0):
+        if(num_step != 0):
             Pw_vars.append(Pw_var_sum/num_step)
             Counts.append(Count_sum/num_step)
+            Exp_scores.append(Exp_score_sum/num_step)
+            Exp_costs.append(Exp_cost_sum/num_step)
             Pw_costs.append(Pw_cost_sum/num_step)
 
 except KeyboardInterrupt:
     #save snapshot of network if we interrupt so we can pickup again later
-    save(Agent, Pw_vars, Counts, Pw_costs)
+    save(Agent, Pw_vars, Counts, Exp_scores, Exp_costs, Pw_costs)
     exit(1)
 
-save(Agent, Pw_vars, Counts, Pw_costs)
+save(Agent, Pw_vars, Counts, Exp_scores, Exp_costs, Pw_costs)

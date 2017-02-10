@@ -16,6 +16,8 @@ with open(args.data_file, 'rb') as f:
     data = pickle.load(f)
     Pw_costs = data['Pw_costs']
     Counts = data['Counts']
+    Exp_scores = data['Exp_scores']
+    Exp_costs = data['Exp_costs']
     Pw_vars = data['Pw_vars']
     plt.figure(0)
     plt.plot(running_mean(Pw_costs, args.aggregation))
@@ -28,6 +30,16 @@ with open(args.data_file, 'rb') as f:
     plt.xlabel('Episode')
     plt.draw()
     plt.figure(2)
+    plt.plot(running_mean(Exp_scores, args.aggregation))
+    plt.ylabel('exploration score')
+    plt.xlabel('Episode')
+    plt.draw()
+    plt.figure(3)
+    plt.plot(running_mean(Exp_costs, args.aggregation))
+    plt.ylabel('exploration cost')
+    plt.xlabel('Episode')
+    plt.draw()
+    plt.figure(4)
     plt.plot(running_mean(Pw_vars, args.aggregation))
     plt.ylabel('Pw Variance')
     plt.xlabel('Episode')

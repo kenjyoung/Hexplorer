@@ -69,8 +69,11 @@ class Learner:
         alpha = 0.001, 
         rho = 0.9, 
         epsilon = 1e-6, 
+        beta = 0.05,
         mem_size = 100000,
         boardsize = 13):
+
+        self.beta = beta
         input_size = boardsize+2*padding
         input_shape = (num_channels,input_size,input_size)
 
@@ -254,17 +257,17 @@ class Learner:
         self._evaluate = theano.function(
             [state],
             givens = {state_batch : state.dimshuffle('x',0,1,2)},
-            outputs = [(Pw_output*(1-played)).flatten(), (Qsigma_output*(1-played)).flatten()]
+            outputs = [(Pw_output*(1-played)).flatten(), (exp_output*(1-played)).flatten()]
         )
         self._evaluate_multi = theano.function(
             [state_batch],
-            outputs = [(Pw_output*(1-played)).flatten(2), (Qsigma_output*(1-played)).flatten(2)]
+            outputs = [(Pw_output*(1-played)).flatten(2), (exp_output*(1-played)).flatten(2)]
         )
 
         #Build update function for both exp and Pw
         Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch], Pw_targets), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
-        exp_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(exp_output.flatten(2)[T.arange(exp_output.shape[0]),action_batch], exp_targets), mode='mean')
+        exp_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(exp_output.flatten(2)[T.arange(exp_targets.shape[0]),action_batch], exp_targets), mode='mean')
         exp_params = lasagne.layers.get_all_params(exp_output_layer)
 
         l2_penalty = regularize_layer_params(self.layers, l2)*1e-7
@@ -279,9 +282,9 @@ class Learner:
             self.opt_state.append(accu)
 
         self._update = theano.function(
-            [state_batch, action_batch, Pw_targets],
+            [state_batch, action_batch, Pw_targets, exp_targets],
             updates = updates,
-            outputs = [Pw_loss]
+            outputs = [Pw_loss, exp_loss]
         )
 
         #Build mentor function for Pw
@@ -316,18 +319,17 @@ class Learner:
 
         Pw2, exp2 = self._evaluate_multi(states2)
         #add a cap on the lowest possible value of losing probability
-        Pl =  np.maximum(1-Pw2,0.00001)
-        joint = np.min(Pl, axis=1)
-        exp_max = exp2[T.arange(Pw_targets.shape[0]),np.argmax(Pw2+exp2, axis=1)]
+        Pl2 = 1-Pw2[np.arange(batch_size),np.argmax(Pw2+self.beta*exp2, axis=1)]
+        exp_max = exp2[np.arange(batch_size),np.argmax(Pw2+self.beta*exp2, axis=1)]
 
         #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
-        Pw_targets[terminals==0] = joint[terminals==0]
+        Pw_targets[terminals==0] = Pl2[terminals==0]
         Pw_targets[terminals==1] = 1
         exp_targets = np.zeros(terminals.size).astype(theano.config.floatX)
-        exp_targets[terminals==0] = rewards[terminals==0]+exp_max[terminals==0]
+        exp_targets[terminals==0] = rewards[terminals==0] + exp_max[terminals==0]
         exp_targets[terminals==1] = rewards[terminals==1]
-        return self._update(states1, actions, Pw_targets)[0]
+        return self._update(states1, actions, Pw_targets, exp_targets)
 
     def mentor(self, states, Pws):
         states = np.asarray(states, dtype=theano.config.floatX)
@@ -337,18 +339,18 @@ class Learner:
     def exploration_policy(self, state, win_cutoff=0.0001):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
-        Q = self._evaluate_Pw(state)
+        Pw, exp = self._evaluate(state)
 
         #epsilon greedy
         if np.random.rand()<0.1:
             action = np.random.choice(np.where(played==0)[0])
-            return action, Q
+            return action, Pw, exp
 
-        values = np.copy(Q)
+        values = Pw + self.beta*exp
         #never select played values
-        values[played]=-1
+        values[played] =- 1
         action = rargmax(values)
-        return action, Q
+        return action, Pw, exp
 
     def optimization_policy(self, state):
         played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
@@ -356,7 +358,7 @@ class Learner:
         Pw = self._evaluate_Pw(state)
         values = Pw
         #never select played values
-        values[played]=-1
+        values[played] =- 1
         action = rargmax(values)
         return action
 
