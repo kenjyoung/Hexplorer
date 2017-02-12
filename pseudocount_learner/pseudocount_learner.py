@@ -104,8 +104,8 @@ class Learner:
 
         self.opt_state = []
         self.layers = []
-        num_filters = 4
-        num_shared = 2
+        num_filters = 128
+        num_shared = 11
         num_win = 3
         num_exp = 3
 
@@ -232,7 +232,7 @@ class Learner:
                 incoming = self.layers[-1], 
                 num_filters=1, 
                 radius = 1, 
-                nonlinearity = T.nnet.softplus, 
+                nonlinearity = lasagne.nonlinearities.sigmoid, 
                 W=lasagne.init.HeNormal(1), 
                 b=lasagne.init.Constant(0),
                 pos_dep_bias = True,
@@ -327,7 +327,7 @@ class Learner:
         Pw_targets[terminals==0] = Pl2[terminals==0]
         Pw_targets[terminals==1] = 1
         exp_targets = np.zeros(terminals.size).astype(theano.config.floatX)
-        exp_targets[terminals==0] = rewards[terminals==0] + exp_max[terminals==0]
+        exp_targets[terminals==0] = rewards[terminals==0] + 0.95*exp_max[terminals==0]
         exp_targets[terminals==1] = rewards[terminals==1]
         return self._update(states1, actions, Pw_targets, exp_targets)
 

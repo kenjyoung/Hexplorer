@@ -141,7 +141,7 @@ try:
                 state2 = flip_game(gameB if move_parity else gameW)
             move_parity = not move_parity
             pseudocount = Agent.update_count(state2)
-            reward = 1/np.sqrt(pseudocount+0.1)
+            reward = 1/np.sqrt(pseudocount+0.01)
             Agent.update_memory(state1, action, state2, reward, terminal)
             costs = Agent.learn(batch_size = batch_size)
             if costs is None:
