@@ -267,7 +267,7 @@ class Learner:
         #Build update function for both exp and Pw
         Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch], Pw_targets), mode='mean')
         Pw_params = lasagne.layers.get_all_params(Pw_output_layer)
-        exp_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(exp_output.flatten(2)[T.arange(exp_targets.shape[0]),action_batch], exp_targets), mode='mean')
+        exp_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(exp_output.flatten(2)[T.arange(exp_targets.shape[0]),action_batch], T.clip(exp_targets,0,1)), mode='mean')
         exp_params = lasagne.layers.get_all_params(exp_output_layer)
 
         l2_penalty = regularize_layer_params(self.layers, l2)*1e-7
