@@ -69,11 +69,9 @@ class Learner:
         alpha = 0.001, 
         rho = 0.9, 
         epsilon = 1e-6, 
-        beta = 0.05,
         mem_size = 100000,
         boardsize = 13):
 
-        self.beta = beta
         input_size = boardsize+2*padding
         input_shape = (num_channels,input_size,input_size)
 
@@ -263,6 +261,11 @@ class Learner:
             [state_batch],
             outputs = [(Pw_output*(1-played)).flatten(2), (exp_output*(1-played)).flatten(2)]
         )
+        self._evaluate_Pw = theano.function(
+            [state],
+            givens = {state_batch : state.dimshuffle('x',0,1,2)},
+            outputs = (Pw_output*(1-played)).flatten()
+        )
 
         #Build update function for both exp and Pw
         Pw_loss = lasagne.objectives.aggregate(lasagne.objectives.squared_error(Pw_output.flatten(2)[T.arange(Pw_targets.shape[0]),action_batch], Pw_targets), mode='mean')
@@ -319,8 +322,8 @@ class Learner:
 
         Pw2, exp2 = self._evaluate_multi(states2)
         #add a cap on the lowest possible value of losing probability
-        Pl2 = 1-Pw2[np.arange(batch_size),np.argmax(Pw2+self.beta*exp2, axis=1)]
-        exp_max = exp2[np.arange(batch_size),np.argmax(Pw2+self.beta*exp2, axis=1)]
+        Pl2 = 1-Pw2[np.arange(batch_size),np.argmax(Pw2+exp2, axis=1)]
+        exp_max = exp2[np.arange(batch_size),np.argmax(Pw2+exp2, axis=1)]
 
         #Update networks
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
@@ -346,7 +349,7 @@ class Learner:
             action = np.random.choice(np.where(played==0)[0])
             return action, Pw, exp
 
-        values = Pw + self.beta*exp
+        values = Pw + exp
         #never select played values
         values[played] =- 1
         action = rargmax(values)

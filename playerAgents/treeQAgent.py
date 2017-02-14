@@ -70,12 +70,12 @@ class node:
             return self.Q / self.N + explore * np.sqrt(2 * np.log(self.parent.N) / self.N)
 
 
-class treeNetAgent:
+class treeQAgent:
     def __init__(self, state=gamestate(13)):
         self.state = copy(state)
         self.root = node()
         network = Learner(loadfile=os.path.dirname(
-            os.path.realpath(__file__)) + "/learner.save")
+            os.path.realpath(__file__)) + "/Q_learner.save")
         self.evaluator = network.win_prob
 
     def move(self, move):

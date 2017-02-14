@@ -86,6 +86,7 @@ else:
 
 numEpisodes = 1000000
 batch_size = 32
+beta = 0.01
 
 #if load parameter is passed or a saved learner is available in the data directory load a network from a file
 if args.load:
@@ -141,7 +142,7 @@ try:
                 state2 = flip_game(gameB if move_parity else gameW)
             move_parity = not move_parity
             pseudocount = Agent.update_count(state2)
-            reward = 1/np.sqrt(pseudocount+0.01)
+            reward = beta/np.sqrt(pseudocount+0.01)
             Agent.update_memory(state1, action, state2, reward, terminal)
             costs = Agent.learn(batch_size = batch_size)
             if costs is None:

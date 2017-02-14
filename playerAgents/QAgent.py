@@ -16,10 +16,10 @@ def rargmax(vector):
     indices = np.nonzero(vector == m)[0]
     return pr.choice(indices)
 
-class networkAgent:
+class QAgent:
 	def __init__(self, state = gamestate(13)):
 		self.state = copy(state)
-		network = Learner(loadfile = os.path.dirname(os.path.realpath(__file__))+"/learner.save")
+		network = Learner(loadfile = os.path.dirname(os.path.realpath(__file__))+"/Q_learner.save")
 		self.evaluator = network.win_prob
 
 	def move(self, move):
