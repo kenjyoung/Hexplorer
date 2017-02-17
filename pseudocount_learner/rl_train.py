@@ -86,7 +86,7 @@ else:
 
 numEpisodes = 1000000
 batch_size = 32
-beta = 0.01
+beta = 0.0025
 
 #if load parameter is passed or a saved learner is available in the data directory load a network from a file
 if args.load:
