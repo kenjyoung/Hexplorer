@@ -371,6 +371,11 @@ class Learner:
         values = Pw
         return values
 
+    def win_prob_and_exp(self, state):
+        state = np.asarray(state, dtype=theano.config.floatX)
+        Pw, exp = self._evaluate(state)
+        return Pw, exp
+
     def save(self, savefile = 'learner.save'):
         params = lasagne.layers.get_all_param_values(self.layers)
         data = {'params':params, 'mem':self.mem, 'counter':self.counter, 'opt': [[x.get_value() for x in y] for y in self.opt_state]}

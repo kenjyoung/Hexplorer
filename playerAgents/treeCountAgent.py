@@ -1,16 +1,17 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/../")
-sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../Q_learner")
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+"/../pseudocount_learner")
 from gamestate import gamestate
 from copy import copy, deepcopy
 import numpy as np
 from inputFormat import *
 from stateToInput import stateToInput
-from Q_learner import Learner
+from pseudocount_learner import Learner
 import time
 
-EXPLORATION = 0.1
+EXPLORATION = 1
+beta = 0.0025
 
 
 class node:
@@ -71,13 +72,13 @@ class node:
             return self.Q / self.N + explore * np.sqrt(2 * np.log(self.parent.N) / self.N)
 
 
-class treeQAgent:
+class treeCountAgent:
     def __init__(self, state=gamestate(13)):
         self.state = copy(state)
         self.root = node()
         network = Learner(loadfile=os.path.dirname(
-            os.path.realpath(__file__)) + "/Q_learner.save")
-        self.evaluator = network.win_prob
+            os.path.realpath(__file__)) + "/pseudocount_learner.save")
+        self.evaluator = network.win_prob_and_exp
 
     def move(self, move):
         """
@@ -120,18 +121,21 @@ class treeQAgent:
             state = mirror_game(state)
         played = np.logical_or(state[white, padding:boardsize + padding, padding:boardsize + padding],
                                state[black, padding:boardsize + padding, padding:boardsize + padding]).flatten()
-        scores = self.evaluator(state)
-        value = 1-np.max(scores[np.logical_not(played)])
-        for i in range(len(scores)):
+        Pw_scores, exp_scores = self.evaluator(state)
+        counts = (beta/(exp_scores))**2
+        counts[counts == np.inf] = 1
+        value = 1-np.max(Pw_scores[np.logical_not(played)])
+        count = counts[np.argmax(Pw_scores[np.logical_not(played)])]
+        for i in range(len(Pw_scores)):
             if not played[i]:
                 if(toplay == white):
                     move = i
                 else:
                     move = boardsize * (i % boardsize) + i // boardsize
                 children.append(
-                    node(Q=scores[i], N=1, move=move, parent=parent))
+                    node(Q=Pw_scores[i], N=counts[i], move=move, parent=parent))
         parent.add_children(children)
-        return value
+        return value, count
 
     def search(self, time_budget=1):
         """
@@ -143,8 +147,9 @@ class treeQAgent:
         # do until we exceed our time budget
         while(time.time() - startTime < time_budget):
             node, state = self.select_node()
-            value = self.evaluate(node, state)
-            self.backup(node, value)
+            value, count = self.evaluate(node, state)
+            sys.stderr.write(str(count)+"\n")
+            self.backup(node, value, count)
             num_evals += 1
         sys.stderr.write("Ran " + str(num_evals) + " evaluations in " +
                          str(time.time() - startTime) + " sec\n")
@@ -167,13 +172,13 @@ class treeQAgent:
             state.play(move)
         return (node, state)
 
-    def backup(self, node, value):
+    def backup(self, node, value, count):
         """
         Update the node statistics on the path from the passed node to root to reflect
         the outcome of a network evaluation.
         """
         while node is not None:
-            node.N += 1
+            node.N += count
             node.Q += value
             value = 1-value
             node = node.parent

@@ -4,11 +4,12 @@ from QAgent import QAgent
 from treeQAgent import treeQAgent
 from pseudocountAgent import pseudocountAgent
 from explorationAgent import explorationAgent
+from treeCountAgent import treeCountAgent
 from gamestate import gamestate
 version = 0.1
 protocol_version = 2
 class gtpinterface:
-	AGENTS = {"resistance" : resistanceAgent, "Q" : QAgent, "count": pseudocountAgent, "explore" : explorationAgent, "treeQ" : treeQAgent}
+	AGENTS = {"resistance" : resistanceAgent, "Q" : QAgent, "count": pseudocountAgent, "explore" : explorationAgent, "treeQ" : treeQAgent, "treeCount" : treeCountAgent}
 	"""
 	Interface for using go-text-protocol to control the program
 	Each implemented GTP command returns a string response for the user, along with
