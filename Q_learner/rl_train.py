@@ -112,7 +112,7 @@ try:
             gameW = flip_game(positions[index])
         # gameW = new_game(13)
         # play_cell(gameW, action_to_cell(np.random.randint(0,25)), white)
-        move_parity = False
+        # move_parity = False
         gameB = mirror_game(gameW)
         t = time.clock()
         while(winner(gameW)==None):

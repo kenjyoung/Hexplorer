@@ -55,12 +55,12 @@ save_time = 60
 #save snapshot of network to unique file every x minutes during training
 snapshot_interval = 1000
 
-# print("Loading starting positions... ")
-# datafile = open("data/scoredPositionsFull.npz", 'rb')
-# data = np.load(datafile)
-# positions = data['positions']
-# datafile.close()
-# numPositions = len(positions)
+print("Loading starting positions... ")
+datafile = open("data/scoredPositionsFull.npz", 'rb')
+data = np.load(datafile)
+positions = data['positions']
+datafile.close()
+numPositions = len(positions)
 
 if args.data and not os.path.exists(args.data):
     os.makedirs(args.data)
@@ -109,19 +109,19 @@ try:
         Exp_score_sum = 0
         Exp_cost_sum = 0
         Pw_var_sum = 0
-        # #randomly choose who is to move from each position to increase variability in dataset
-        # move_parity = np.random.choice([True,False])
+        #randomly choose who is to move from each position to increase variability in dataset
+        move_parity = np.random.choice([True,False])
         #randomly choose starting position from database
-        # index = np.random.randint(numPositions)
-        # #randomly flip states to capture symmetry
-        # if(np.random.choice([True,False])):
-        #     gameW = np.copy(positions[index])
-        # else:
-        #     gameW = flip_game(positions[index])
-        gameW = new_game(13)
-        play_cell(gameW, action_to_cell(np.random.randint(0,25)), white)
+        index = np.random.randint(numPositions)
+        #randomly flip states to capture symmetry
+        if(np.random.choice([True,False])):
+            gameW = np.copy(positions[index])
+        else:
+            gameW = flip_game(positions[index])
+        # gameW = new_game(13)
+        # play_cell(gameW, action_to_cell(np.random.randint(0,25)), white)
         gameB = mirror_game(gameW)
-        move_parity = False
+        # move_parity = False
         t = time.clock()
         while(winner(gameW)==None):
             action, Pw, exp = Agent.exploration_policy(gameW if move_parity else gameB)
