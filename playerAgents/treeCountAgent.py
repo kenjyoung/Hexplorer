@@ -125,7 +125,8 @@ class treeCountAgent:
         counts = (beta/(exp_scores))**2
         counts[counts == np.inf] = 1
         value = 1-np.max(Pw_scores[np.logical_not(played)])
-        count = counts[np.argmax(Pw_scores[np.logical_not(played)])]
+        not_played_counts = counts[np.logical_not(played)]
+        count = not_played_counts[np.argmax(Pw_scores[np.logical_not(played)])]
         for i in range(len(Pw_scores)):
             if not played[i]:
                 if(toplay == white):

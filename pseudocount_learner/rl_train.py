@@ -56,7 +56,7 @@ save_time = 60
 snapshot_interval = 1000
 
 print("Loading starting positions... ")
-datafile = open("data/scoredPositionsFull.npz", 'rb')
+datafile = open("../data/scoredPositionsFull.npz", 'rb')
 data = np.load(datafile)
 positions = data['positions']
 datafile.close()

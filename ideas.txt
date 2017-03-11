@@ -1,2 +1,1 @@
--using learned pseudocounts in UCT? use a seperate neural network for learning pseudocount values and win rate values? 
-
+-for testing use softmax version of wolve. Test all move win-rate of final pseudocount and non-pseudocount version against softmax wolve at various temperatures. Then select some reasonable temperature and test all move winrates of incrementally trained versions of both players to get some kind of training curve.
