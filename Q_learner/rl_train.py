@@ -53,7 +53,7 @@ args = parser.parse_args()
 #save network every x minutes during training
 save_time = 60
 #save snapshot of network to unique file every x minutes during training
-snapshot_interval = 100
+snapshot_interval = 500
 
 # print("Loading starting positions... ")
 # datafile = open("../data/scoredPositionsFull.npz", 'rb')
