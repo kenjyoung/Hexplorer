@@ -120,10 +120,10 @@ neurohex = agent(neurohex_exe)
 white_wins = 0
 black_wins = 0
 for game in range(num_games):
-	winner = run_game(mohex1, neurohex, mohex2, None, num_moves, 13, True)
+	winner = run_game(mohex1, neurohex, mohex2, None, num_moves, 7, True)
 	if(winner == gamestate.PLAYERS["black"]):
 		white_wins += 1
-	winner = run_game(mohex2, None	, mohex1, neurohex, num_moves, 13, True)
+	winner = run_game(mohex2, None	, mohex1, neurohex, num_moves, 7, True)
 	if(winner == gamestate.PLAYERS["white"]):
 		black_wins += 1
 

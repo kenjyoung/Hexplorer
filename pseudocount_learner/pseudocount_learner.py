@@ -70,7 +70,7 @@ class Learner:
         rho = 0.9, 
         epsilon = 1e-6, 
         mem_size = 100000,
-        boardsize = 13):
+        boardsize = 7):
 
         input_size = boardsize+2*padding
         input_shape = (num_channels,input_size,input_size)

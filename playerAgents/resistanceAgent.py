@@ -10,7 +10,7 @@ from inputFormat import *
 from stateToInput import stateToInput
 
 class resistanceAgent:
-	def __init__(self, state = gamestate(13)):
+	def __init__(self, state = gamestate(7)):
 		self.state = copy(state)
 		self.scores = None
 

@@ -114,7 +114,7 @@ else:
 if(args.boardsize):
 	boardsize = args.boardsize
 else:
-	boardsize = 13
+	boardsize = 7
 mohex.sendCommand("param_mohex max_time "+str(time))
 neurohex = agent(neurohex_exe)
 mohex.sendCommand("boardsize "+str(boardsize)+" "+str(boardsize))

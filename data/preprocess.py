@@ -3,14 +3,14 @@ import sys
 sys.path.append("..")
 from inputFormat import *
 
-boardsize = 13
+boardsize = 7
 input_size = boardsize+2*padding
 """
-raw_games.dat contains a list of moves corresponding to a 13x13 hex game on each line.
+raw_games.dat contains a list of moves corresponding to a 7x7 hex game on each line.
 This program converts this into an array of hex positions represented as a 4x17x17
 boolean tensor where the 6 channels represent (in order) white, black, west edge connection,
 east edge connection, opponent north edge connection and opponent south edge
-connection. The additional width (17x17 instead of 13x13) is to include the edges
+connection. The additional width (17x17 instead of 7x7) is to include the edges
 of the board which are automatically colored for the appropriate player and edge 
 connected appropriately, additionally this allows a 5x5 input layer filter to be
 placed on directly on the edges without going out of range. Every position 

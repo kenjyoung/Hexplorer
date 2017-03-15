@@ -42,7 +42,7 @@ class gtpinterface:
 		commands["hexgui-analyze_commands"] = self.gtp_analyze
 		commands["agent"] = self.gtp_agent
 		self.commands = commands
-		self.game = gamestate(13)
+		self.game = gamestate(7)
 		self.agent_name = agent_name
 		try:
 			self.agent = self.AGENTS[agent_name]()

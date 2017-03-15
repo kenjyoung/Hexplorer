@@ -80,7 +80,7 @@ else:
 
 numEpisodes = 1000000
 batch_size = 32
-boardsize = 13
+boardsize = 7
 
 
 #if load parameter is passed or a saved learner is available in the data directory load a network from a file
@@ -110,7 +110,7 @@ try:
             gameW = np.copy(positions[index])
         else:
             gameW = flip_game(positions[index])
-        # gameW = new_game(13)
+        # gameW = new_game(7)
         # play_cell(gameW, action_to_cell(np.random.randint(0,25)), white)
         move_parity = False
         gameB = mirror_game(gameW)

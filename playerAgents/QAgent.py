@@ -17,7 +17,7 @@ def rargmax(vector):
     return pr.choice(indices)
 
 class QAgent:
-	def __init__(self, state = gamestate(13)):
+	def __init__(self, state = gamestate(7)):
 		self.state = copy(state)
 		network = Learner(loadfile = os.path.dirname(os.path.realpath(__file__))+"/Q_learner.save")
 		self.evaluator = network.win_prob

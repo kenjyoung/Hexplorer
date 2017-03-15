@@ -96,10 +96,10 @@ black_wins = 0
 for game in range(num_games):
 	wolve.reconnect()
 	wolve.sendCommand("param_wolve max_time "+str(time))
-	winner = run_game(wolve, neurohex, 13, args.verbose)
+	winner = run_game(wolve, neurohex, 7, args.verbose)
 	if(winner == gamestate.PLAYERS["white"]):
 		white_wins += 1
-	winner = run_game(neurohex, wolve, 13, args.verbose)
+	winner = run_game(neurohex, wolve, 7, args.verbose)
 	if(winner == gamestate.PLAYERS["black"]):
 		black_wins += 1
 

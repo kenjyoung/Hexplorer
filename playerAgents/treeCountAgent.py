@@ -73,7 +73,7 @@ class node:
 
 
 class treeCountAgent:
-    def __init__(self, state=gamestate(13)):
+    def __init__(self, state=gamestate(7)):
         self.state = copy(state)
         self.root = node()
         network = Learner(loadfile=os.path.dirname(
