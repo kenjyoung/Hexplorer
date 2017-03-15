@@ -103,7 +103,7 @@ class Learner:
         self.opt_state = []
         self.layers = []
         num_filters = 128
-        num_shared = 11
+        num_shared = 6
         num_win = 3
         num_exp = 3
 

@@ -95,7 +95,7 @@ class Learner:
         self.opt_state = []
         self.layers = []
         num_filters = 128
-        num_layers = 14
+        num_layers = 9
 
         #Initialize input layer
         l_in = lasagne.layers.InputLayer(
