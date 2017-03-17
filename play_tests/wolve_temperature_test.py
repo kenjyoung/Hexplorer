@@ -94,14 +94,17 @@ if(args.time):
 else:
     move_time = 1
 wolve.sendCommand("param_wolve max_time "+str(move_time))
+wolve.sendCommand("boardsize 7")
 
 #Initialize count based player
 counthex = agent(hexplorer_exe)
 counthex.sendCommand("agent count")
+counthex.sendCommand("boardsize 7")
 
 #Initialize ordinary Q-learning based player
 Qhex = agent(hexplorer_exe)
 Qhex.sendCommand("agent Q")
+Qhex.sendCommand("boardsize 7")
 
 #Create list of all opening moves
 moves=[chr(i+ord('a'))+str(j+1) for i in range(7) for j in range(7)]
@@ -112,8 +115,8 @@ black_win_rates_Q = []
 white_win_rates_count = []
 black_win_rates_count = []
 temps = []
-for i in range(10):
-    temp = 300*i
+for i in range(20):
+    temp = 250*i
     print("temp: "+str(temp))
     temps.append(temp)
     #Initialize win counts
@@ -126,6 +129,7 @@ for i in range(10):
         wolve.reconnect()
         wolve.sendCommand("param_wolve max_time "+str(move_time))
         wolve.sendCommand("param_wolve temperature "+str(temp))
+        wolve.sendCommand("boardsize 7")
         winner = run_game(wolve, counthex, 7, move, args.verbose)
         if(winner == gamestate.PLAYERS["white"]):
             white_wins_count += 1
