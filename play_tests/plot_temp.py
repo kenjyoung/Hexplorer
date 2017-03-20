@@ -11,10 +11,10 @@ with open(args.data_file, 'rb') as f:
     data = pickle.load(f)
     black_win_rates_Q = np.asarray(data['black_win_rates_Q'])
     white_win_rates_Q = np.asarray(data['white_win_rates_Q'])
-    win_rates_Q = black_win_rates_Q + white_win_rates_Q
+    win_rates_Q = (black_win_rates_Q + white_win_rates_Q)/2
     black_win_rates_count = np.asarray(data['black_win_rates_count'])
     white_win_rates_count = np.asarray(data['white_win_rates_count'])
-    win_rates_count = black_win_rates_count + white_win_rates_count
+    win_rates_count = (black_win_rates_count + white_win_rates_count)/2
     temps = data['temps']
     plt.plot(temps, win_rates_Q, 'r')
     plt.plot(temps, win_rates_count, 'b')

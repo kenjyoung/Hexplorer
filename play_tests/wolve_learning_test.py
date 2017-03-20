@@ -76,6 +76,8 @@ def run_game(blackAgent, whiteAgent, boardsize, opening=None, verbose = False):
 
 wolve_exe = "/home/kenny/Hex/benzene-vanilla/src/wolve/wolve 2>/dev/null"
 hexplorer_exe = "/home/kenny/Hex/Hexplorer/playerAgents/program.py 2>/dev/null"
+Q_learner_dir = "/home/kenny/Hex/Hexplorer/Q_learner/rl_train7x7_1/"
+count_learner_dir = "/home/kenny/Hex/Hexplorer/pseudocount_learner/rl_train7x7_1/"
 
 parser = argparse.ArgumentParser(description="Run tournament against wolve at various temperatures and output results.")
 parser.add_argument("--time", "-t", type=int, help="total time allowed for wolve each move in seconds.")
@@ -115,10 +117,10 @@ black_win_rates_Q = []
 white_win_rates_count = []
 black_win_rates_count = []
 temps = []
-for i in range(20):
-    temp = 250*i
-    print("temp: "+str(temp))
-    temps.append(temp)
+for i in range(200):
+    snapshot_num = i
+    Qloadfile = Q_learner_dir+'snapshot_'+str(snapshot_num)+'.save'
+    countloadfile = count_learner_dir+'snapshot_'+str(snapshot_num)+'.save'
     #Initialize win counts
     white_wins_Q = 0
     black_wins_Q = 0
@@ -128,8 +130,9 @@ for i in range(20):
     for move in moves:
         wolve.reconnect()
         wolve.sendCommand("param_wolve max_time "+str(move_time))
-        wolve.sendCommand("param_wolve temperature "+str(temp))
+        wolve.sendCommand("param_wolve temperature 0")
         wolve.sendCommand("boardsize 7")
+        counthex.sendCommand('agent count '+countloadfile)
         winner = run_game(wolve, counthex, 7, move, args.verbose)
         if(winner == gamestate.PLAYERS["white"]):
             white_wins_count += 1
@@ -145,8 +148,9 @@ for i in range(20):
     for move in moves:
         wolve.reconnect()
         wolve.sendCommand("param_wolve max_time "+str(move_time))
-        wolve.sendCommand("param_wolve temperature "+str(temp))
+        wolve.sendCommand("param_wolve temperature 0")
         wolve.sendCommand("boardsize 7")
+        counthex.sendCommand('agent count '+Qloadfile)
         winner = run_game(wolve, Qhex, 7, move, args.verbose)
         if(winner == gamestate.PLAYERS["white"]):
             white_wins_Q += 1
