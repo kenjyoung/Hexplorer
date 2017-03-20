@@ -83,6 +83,15 @@ def flood_fill(game, cell, color, edge):
 		if(game[color, n[0], n[1]] and not game[edge, n[0], n[1]]):
 			flood_fill(game, n, color, edge)
 
+def check_cell(game, cell):
+	if(game[white, cell[0], cell[1]]):
+		return white
+	elif(game[black, cell[0], cell[1]]):
+		return black
+	else:
+		return None
+
+
 def play_cell(game, cell, color):
 	edge1_connection = False
 	edge2_connection = False

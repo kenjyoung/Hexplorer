@@ -9,23 +9,93 @@ import argparse
 import time
 import os
 import subprocess
+from program import Program
+import threading
+import shutil
+
+
+class solver:
+    def __init__(self, exe):
+        self.exe = exe 
+        self.program = Program(self.exe, True)
+        self.lock  = threading.Lock()
+        self.thread = None
+
+    class solveThread(threading.Thread):
+        def __init__(self, solver, color):
+            threading.Thread.__init__(self)
+            self.color = color
+            self.solver = solver
+        def run(self):
+            try:
+                self.moves = self.solver.sendCommand("dfpn-solver-find-winning " + ("black" if self.color == black else "white")).split()
+            except Program.Died:
+                pass
+
+    def start_solve(self, color):
+        self.thread = self.solveThread(self, color)
+        self.thread.start()
+
+    def stop_solve(self):
+        self.interrupt()
+        self.thread.join()
+        return self.thread.moves
+
+    def set_game(self, game):
+        self.sendCommand("clear_board")
+        for i in range(boardsize):
+            for j in range(boardsize):
+                cell = (i+padding,j+padding)
+                move_str = move(cell)
+                color = check_cell(game, cell)
+                if color is white:
+                    self.sendCommand("play white "+move_str)
+                elif color is black:
+                    self.sendCommand("play black "+move_str)
+
+    def play_move(self, move, color):
+        if color is white:
+            self.sendCommand("play white "+move)
+        elif color is black:
+            self.sendCommand("play black "+move)
+
+    def sendCommand(self, command):
+        self.lock.acquire()
+        answer = self.program.sendCommand(command)
+        self.lock.release()
+        return answer
+
+    def interrupt(self):
+        self.program.interrupt()
+
+    def reconnect(self):
+        self.program.terminate()
+        self.program = Program(self.exe,True)
+        self.lock = threading.Lock()
+
 
 def get_git_hash():
     return str(subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip())
 
-def save(learner, Pw_vars, Pw_costs):
+
+def save(learner, solver, Pw_vars, Pw_costs):
     print("saving network...")
     if(args.data):
         save_name = args.data+"/learner.save"
         data_name = args.data+"/data.save"
+        solver_name = args.data+"/solver.save"
     else:
         save_name = "learner.save"
         data_name = "data.save"
+        solver_name = "solver.save"
     learner.save(savefile = save_name)
     data = {"Pw_vars":Pw_vars, "Pw_costs":Pw_costs}
     with open(data_name, 'wb') as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-    
+    solver.sendCommand('dfpn-dump-tt')
+    shutil.move("tt.dump",solver_name)
+
+
 
 def snapshot(learner):
     if not args.data:
@@ -38,9 +108,11 @@ def snapshot(learner):
         save_name = args.data+"/snapshot_"+str(index)+".save"
     learner.save(savefile = save_name)
 
+
 def action_to_cell(action):
     cell = np.unravel_index(action, (boardsize,boardsize))
     return(cell[0]+padding, cell[1]+padding)
+
 
 def flip_action(action):
     return boardsize*boardsize-1-action
@@ -62,6 +134,10 @@ snapshot_interval = 500
 # datafile.close()
 # numPositions = len(positions)
 
+wolve_exe = "/home/kenny/Hex/benzene-vanilla/src/wolve/wolve 2>/dev/null"
+solver = solver(wolve_exe)
+solver.sendCommand("boardsize "+str(boardsize))
+
 if args.data and not os.path.exists(args.data):
     os.makedirs(args.data)
     with open(args.data+'/info.txt', 'a') as f:
@@ -74,6 +150,9 @@ if args.data and os.path.exists(args.data+'/data.save'):
         data = pickle.load(f)
         Pw_costs = data['Pw_costs']
         Pw_vars = data['Pw_vars']
+        shutil.copy(solver_name, "tt.dump")
+        solver.sendCommand("dfpn-restore-tt")
+
 else:
     Pw_costs = []
     Pw_vars = []
@@ -111,7 +190,9 @@ try:
         # else:
         #     gameW = flip_game(positions[index])
         gameW = new_game(7)
+        wins = []
         play_cell(gameW, action_to_cell(np.random.randint(0,boardsize*boardsize)), white)
+        solver.set_game(gameW)
         move_parity = False
         gameB = mirror_game(gameW)
         t = time.clock()
@@ -119,8 +200,13 @@ try:
             action, Pw = Agent.exploration_policy(gameW if move_parity else gameB)
             state1 = np.copy(gameW if move_parity else gameB)
             played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
-            move_cell = action_to_cell(action)
+            if(len(wins)>0):
+                move_cell = cell(np.random.choice(wins)) if move_parity else cell_m(cell(np.random.choice(wins)))
+            else:
+                move_cell = action_to_cell(action)
             #print(state_string(gameW, boardsize))
+            solver.play_move(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black)
+            solver.start_solve(black if move_parity else white)
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
             if(not winner(gameW)==None):
@@ -146,6 +232,7 @@ try:
             if(time.clock()-last_save > 60*save_time):
                 save(Agent, Pw_vars, Pw_costs)
                 last_save = time.clock()
+            wins = solver.stop_solve()
         if(i%snapshot_interval == 0):
             snapshot(Agent)
             save(Agent, Pw_vars, Pw_costs)
