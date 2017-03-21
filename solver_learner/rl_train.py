@@ -230,12 +230,12 @@ try:
             Pw_cost_sum += Pw_cost
 
             if(time.clock()-last_save > 60*save_time):
-                save(Agent, Pw_vars, Pw_costs)
+                save(Agent, solver, Pw_vars, Pw_costs)
                 last_save = time.clock()
             wins = solver.stop_solve()
         if(i%snapshot_interval == 0):
             snapshot(Agent)
-            save(Agent, Pw_vars, Pw_costs)
+            save(Agent, solver, Pw_vars, Pw_costs)
         run_time = time.clock() - t
         print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(Pw_cost))
 
@@ -246,7 +246,7 @@ try:
 
 except KeyboardInterrupt:
     #save snapshot of network if we interrupt so we can pickup again later
-    save(Agent, Pw_vars, Pw_costs)
+    save(Agent, solver, Pw_vars, Pw_costs)
     exit(1)
 
-save(Agent, Pw_vars, Pw_costs)
+save(Agent, solver, Pw_vars, Pw_costs)
