@@ -17,7 +17,7 @@ import shutil
 class solver:
     def __init__(self, exe):
         self.exe = exe 
-        self.program = Program(self.exe, True)
+        self.program = Program(self.exe, False)
         self.lock  = threading.Lock()
         self.thread = None
 
@@ -134,7 +134,7 @@ snapshot_interval = 500
 # datafile.close()
 # numPositions = len(positions)
 
-wolve_exe = "/home/kenny/Hex/benzene-vanilla/src/wolve/wolve 2>/dev/null"
+wolve_exe = "/home/kenny/Hex/benzene-vanilla/src/wolve/wolve 2>/dev/null" 
 solver = solver(wolve_exe)
 solver.sendCommand("boardsize "+str(boardsize))
 
@@ -150,8 +150,10 @@ if args.data and os.path.exists(args.data+'/data.save'):
         data = pickle.load(f)
         Pw_costs = data['Pw_costs']
         Pw_vars = data['Pw_vars']
-        shutil.copy(solver_name, "tt.dump")
-        solver.sendCommand("dfpn-restore-tt")
+
+if args.data and os.path.exists(args.data+'/solver.save'):
+    shutil.copy(args.data+'/solver.save', "tt.dump")
+    solver.sendCommand("dfpn-restore-tt")
 
 else:
     Pw_costs = []
@@ -209,7 +211,7 @@ try:
             solver.start_solve(black if move_parity else white)
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
-            if(not winner(gameW)==None):
+            if(not winner(gameW)==None or len(wins)>0):
                 terminal = 1
             else:
                 terminal = 0
