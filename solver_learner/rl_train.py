@@ -203,7 +203,6 @@ try:
             move_cell = action_to_cell(action)
             state1 = np.copy(gameW if move_parity else gameB)
             played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
-            #print(state_string(gameW, boardsize))
             solver.play_move(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black)
             solver.start_solve(black if move_parity else white)
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
@@ -231,7 +230,9 @@ try:
             if(time.clock()-last_save > 60*save_time):
                 save(Agent, solver, Pw_vars, Pw_costs)
                 last_save = time.clock()
-            wins = solver.stop_solve()
+            wins = [(cell(x)[0]-padding,cell(x)[1]-padding) for x in solver.stop_solve()]
+            if not move_parity:
+                wins = [cell_m(x) for x in wins]
         if(i%snapshot_interval == 0):
             snapshot(Agent)
             save(Agent, solver, Pw_vars, Pw_costs)
