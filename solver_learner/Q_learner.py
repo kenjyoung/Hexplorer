@@ -255,7 +255,7 @@ class Learner:
 
         #epsilon greedy
         if np.random.rand()<0.1:
-            action = np.random.choice(np.where(choices==1)[0])
+            action = np.random.choice(np.where(played==0)[0])
             return action, Pw
 
         values = np.copy(Pw)
