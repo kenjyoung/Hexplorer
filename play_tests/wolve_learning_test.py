@@ -79,13 +79,17 @@ hexplorer_exe = "/home/kenny/Hex/Hexplorer/playerAgents/program.py 2>/dev/null"
 Q_learner_dir = "/home/kenny/Hex/Hexplorer/Q_learner/rl_train7x7_1/"
 count_learner_dir = "/home/kenny/Hex/Hexplorer/pseudocount_learner/rl_train7x7_1/"
 
-parser = argparse.ArgumentParser(description="Run tournament against wolve at various temperatures and output results.")
+parser = argparse.ArgumentParser(description="Run tournament against wolve at various learning stages and output results.")
 parser.add_argument("--time", "-t", type=int, help="total time allowed for wolve each move in seconds.")
 parser.add_argument("--verbose", "-v", dest="verbose", action='store_const',
                     const=True, default=False,
                     help="print board after each move.")
 
 args = parser.parse_args()
+
+temperature = 300
+snapshot_interval = 500
+num_snapshots = 200
 
 print("Starting test...")
 
@@ -114,9 +118,10 @@ white_win_rates_Q = []
 black_win_rates_Q = []
 white_win_rates_count = []
 black_win_rates_count = []
-temps = []
-for i in range(200):
+episodes = []
+for i in range(num_snapshots):
     snapshot_num = i
+    episodes.append(snapshot_num*snapshot_interval)
     Qloadfile = Q_learner_dir+'snapshot_'+str(snapshot_num)+'.save'
     countloadfile = count_learner_dir+'snapshot_'+str(snapshot_num)+'.save'
     counthex.sendCommand('agent count '+countloadfile)
@@ -130,7 +135,7 @@ for i in range(200):
     for move in moves:
         wolve.reconnect()
         wolve.sendCommand("param_wolve max_time "+str(move_time))
-        wolve.sendCommand("param_wolve temperature 0")
+        wolve.sendCommand("param_wolve temperature "+str(temperature))
         wolve.sendCommand("boardsize 7")
         winner = run_game(wolve, counthex, 7, move, args.verbose)
         if(winner == gamestate.PLAYERS["white"]):
@@ -147,7 +152,7 @@ for i in range(200):
     for move in moves:
         wolve.reconnect()
         wolve.sendCommand("param_wolve max_time "+str(move_time))
-        wolve.sendCommand("param_wolve temperature 0")
+        wolve.sendCommand("param_wolve temperature "+str(temperature))
         wolve.sendCommand("boardsize 7")
         winner = run_game(wolve, Qhex, 7, move, args.verbose)
         if(winner == gamestate.PLAYERS["white"]):
@@ -160,8 +165,8 @@ for i in range(200):
     print("agent Q, opening "+move+", black win rate: "+str(black_wins_Q/(7*7))+", white win rate: "+str(white_wins_Q/(7*7)))
 
     #Save data for full run
-    datafile = 'wolve_temp.save'
-    data = {'black_win_rates_Q':black_win_rates_Q, 'white_win_rates_Q':white_win_rates_Q, 'black_win_rates_count':black_win_rates_count, 'white_win_rates_count':white_win_rates_count, 'temps':temps}
+    datafile = 'wolve_learning.save'
+    data = {'black_win_rates_Q':black_win_rates_Q, 'white_win_rates_Q':white_win_rates_Q, 'black_win_rates_count':black_win_rates_count, 'white_win_rates_count':white_win_rates_count, 'episodes':episodes}
     with open(datafile, 'wb') as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
