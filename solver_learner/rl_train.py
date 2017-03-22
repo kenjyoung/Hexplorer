@@ -199,13 +199,9 @@ try:
         gameB = mirror_game(gameW)
         t = time.clock()
         while(winner(gameW)==None):
-            action, Pw = Agent.exploration_policy(gameW if move_parity else gameB)
+            action, Pw = Agent.exploration_policy(gameW if move_parity else gameB, move_set = wins)
             state1 = np.copy(gameW if move_parity else gameB)
             played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
-            if(len(wins)>0):
-                move_cell = cell(np.random.choice(wins)) if move_parity else cell_m(cell(np.random.choice(wins)))
-            else:
-                move_cell = action_to_cell(action)
             #print(state_string(gameW, boardsize))
             solver.play_move(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black)
             solver.start_solve(black if move_parity else white)

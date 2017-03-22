@@ -241,19 +241,27 @@ class Learner:
         Pws = np.asarray(Pws, dtype=theano.config.floatX)
         return self._mentor(states, Pws)[0]
 
-    def exploration_policy(self, state, win_cutoff=0.0001):
-        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
+    def exploration_policy(self, state, win_cutoff=0.0001, move_set = None):
+        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding])
+        if(move_set is not None and len(move_set)>0):
+            choices = np.zeros(state[white,:,:].shape, dtype=bool)
+            for move in move_set:
+                cell = cell(move)
+                choices[cell[0],cell[1]] = 1
+                choices = choices.flatten()
+        else:
+            choices = np.logical_not(played).flatten()
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw = self._evaluate_Pw(state)
 
         #epsilon greedy
         if np.random.rand()<0.1:
-            action = np.random.choice(np.where(played==0)[0])
+            action = np.random.choice(np.where(choices==1)[0])
             return action, Pw
 
         values = np.copy(Pw)
         #never select played values
-        values[played]=-2
+        values[np.logical_not(choices)]=-2
         action = rargmax(values)
         return action, Pw
 
