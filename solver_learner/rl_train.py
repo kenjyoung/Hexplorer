@@ -200,6 +200,7 @@ try:
         t = time.clock()
         while(winner(gameW)==None):
             action, Pw = Agent.exploration_policy(gameW if move_parity else gameB, move_set = wins)
+            move_cell = action_to_cell(action)
             state1 = np.copy(gameW if move_parity else gameB)
             played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
             #print(state_string(gameW, boardsize))
