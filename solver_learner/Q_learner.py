@@ -246,8 +246,8 @@ class Learner:
         if(move_set is not None and len(move_set)>0):
             choices = np.zeros(state[white,:,:].shape, dtype=bool)
             for move in move_set:
-                cell = cell(move)
-                choices[cell[0],cell[1]] = 1
+                move_cell = cell(move)
+                choices[move_cell[0],move_cell[1]] = 1
                 choices = choices.flatten()
         else:
             choices = np.logical_not(played).flatten()
