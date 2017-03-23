@@ -19,6 +19,11 @@ def cell(move):
 	y = int(move[1:])-1+padding
 	return (x,y)
 
+def unpadded_cell(move):
+	x =	ord(move[0].lower())-ord('a')
+	y = int(move[1:])-1
+	return (x,y)
+
 def move(cell):
 	return chr(ord('a')+cell[0]-padding)+str(cell[1]-padding+1)
 

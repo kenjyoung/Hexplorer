@@ -17,7 +17,7 @@ import shutil
 class solver:
     def __init__(self, exe):
         self.exe = exe 
-        self.program = Program(self.exe, False)
+        self.program = Program(self.exe, True)
         self.lock  = threading.Lock()
         self.thread = None
 
@@ -207,6 +207,7 @@ try:
             solver.start_solve(black if move_parity else white)
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
+            move_parity = not move_parity
             if(not winner(gameW)==None or len(wins)>0):
                 terminal = 1
             else:
@@ -216,7 +217,6 @@ try:
                 state2 = np.copy(gameB if move_parity else gameW)
             else:
                 state2 = flip_game(gameB if move_parity else gameW)
-            move_parity = not move_parity
             Agent.update_memory(state1, action, state2, terminal)
             Pw_cost = Agent.learn(batch_size = batch_size)
             if(Pw_cost is None):
@@ -230,7 +230,7 @@ try:
             if(time.clock()-last_save > 60*save_time):
                 save(Agent, solver, Pw_vars, Pw_costs)
                 last_save = time.clock()
-            wins = [(cell(x)[0]-padding,cell(x)[1]-padding) for x in solver.stop_solve()]
+            wins = [unpadded_cell(x) for x in solver.stop_solve()]
             if not move_parity:
                 wins = [cell_m(x) for x in wins]
         if(i%snapshot_interval == 0):

@@ -242,14 +242,14 @@ class Learner:
         return self._mentor(states, Pws)[0]
 
     def exploration_policy(self, state, win_cutoff=0.0001, move_set = None):
-        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding])
+        played = np.logical_or(state[white,padding:-padding,padding:-padding], state[black,padding:-padding,padding:-padding]).flatten()
         if(move_set is not None and len(move_set)>0):
             choices = np.zeros(state[white,padding:-padding,padding:-padding].shape, dtype=bool)
             for move in move_set:
                 choices[move[0], move[1]] = 1
             choices = choices.flatten()
         else:
-            choices = np.logical_not(played).flatten()
+            choices = np.logical_not(played)
         state = np.asarray(state, dtype=theano.config.floatX)
         Pw = self._evaluate_Pw(state)
 
