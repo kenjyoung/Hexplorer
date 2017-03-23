@@ -17,7 +17,7 @@ import shutil
 class solver:
     def __init__(self, exe):
         self.exe = exe 
-        self.program = Program(self.exe, True)
+        self.program = Program(self.exe, False)
         self.lock  = threading.Lock()
         self.thread = None
 
