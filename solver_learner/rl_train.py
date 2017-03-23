@@ -198,6 +198,7 @@ try:
         move_parity = False
         gameB = mirror_game(gameW)
         t = time.clock()
+        next_terminal = 0
         while(winner(gameW)==None):
             action, Pw = Agent.exploration_policy(gameW if move_parity else gameB, move_set = wins)
             move_cell = action_to_cell(action)
@@ -208,10 +209,13 @@ try:
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
             move_parity = not move_parity
-            if(not winner(gameW)==None or len(wins)>0):
+            if(not winner(gameW)==None or next_terminal == 1):
                 terminal = 1
+                next_terminal = 0
             else:
                 terminal = 0
+            if(len(wins)>0):
+                next_terminal = 1
             #randomly flip states to capture symmetry
             if(np.random.choice([True,False])):
                 state2 = np.copy(gameB if move_parity else gameW)
