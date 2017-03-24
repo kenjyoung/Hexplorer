@@ -81,9 +81,11 @@ count_learner_dir = "/home/kenny/Hex/Hexplorer/pseudocount_learner/rl_train7x7_1
 
 parser = argparse.ArgumentParser(description="Run tournament against wolve at various learning stages and output results.")
 parser.add_argument("--time", "-t", type=int, help="total time allowed for wolve each move in seconds.")
+parser.add_argument("--load", "-l", type=str, help="Specify a file with a partially completed run to load.")
 parser.add_argument("--verbose", "-v", dest="verbose", action='store_const',
                     const=True, default=False,
                     help="print board after each move.")
+parser.add_argument
 
 args = parser.parse_args()
 
@@ -114,18 +116,28 @@ Qhex.sendCommand("boardsize 7")
 moves=[chr(i+ord('a'))+str(j+1) for i in range(7) for j in range(7)]
 #moves = ['a1']
 
-white_win_rates_Q = []
-black_win_rates_Q = []
-white_win_rates_count = []
-black_win_rates_count = []
-episodes = []
-for i in range(num_snapshots):
+if(args.load):
+    with open(args.load, 'rb') as f:
+        data = pickle.load(f)
+        white_win_rates_Q = data['white_win_rates_Q']
+        black_win_rates_Q = data['black_win_rates_Q']
+        white_win_rates_count = data['white_win_rates_count']
+        black_win_rates_count = data['black_win_rates_count']
+        episodes = data['episodes']
+else:
+    white_win_rates_Q = []
+    black_win_rates_Q = []
+    white_win_rates_count = []
+    black_win_rates_count = []
+    episodes = []
+
+for i in range(len(episodes), num_snapshots):
     snapshot_num = i
     episodes.append(snapshot_num*snapshot_interval)
     Qloadfile = Q_learner_dir+'snapshot_'+str(snapshot_num)+'.save'
     countloadfile = count_learner_dir+'snapshot_'+str(snapshot_num)+'.save'
     counthex.sendCommand('agent count '+countloadfile)
-    counthex.sendCommand('agent Q '+Qloadfile)
+    Qhex.sendCommand('agent Q '+Qloadfile)
     #Initialize win counts
     white_wins_Q = 0
     black_wins_Q = 0
