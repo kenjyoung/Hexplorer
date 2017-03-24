@@ -297,7 +297,7 @@ class gtpinterface:
             return (True, ret)
         else:
             try:
-                if len(args)>2:
+                if len(args)>1:
                     loadfile = args[1]
                     self.agent = self.AGENTS[args[0]](loadfile = loadfile)
                 else:
