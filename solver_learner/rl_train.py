@@ -41,6 +41,11 @@ class solver:
         self.thread.join()
         return self.thread.moves
 
+    def get_pruned(self, color):
+        self.sendCommand("vc-build "+("black" if color == black else "white"))
+        pruned = self.sendCommand("vc-get-mustplay "+("black" if color == black else "white")).split()
+        return [pruned[i] for i in range(len(pruned)) if i%2==0]
+
     def set_game(self, game):
         self.sendCommand("clear_board")
         for i in range(boardsize):
@@ -193,34 +198,35 @@ try:
         #     gameW = flip_game(positions[index])
         gameW = new_game(7)
         wins = []
+        pruned = []
         play_cell(gameW, action_to_cell(np.random.randint(0,boardsize*boardsize)), white)
         solver.set_game(gameW)
         move_parity = False
         gameB = mirror_game(gameW)
         t = time.clock()
-        next_terminal = 0
         while(winner(gameW)==None):
-            action, Pw = Agent.exploration_policy(gameW if move_parity else gameB, move_set = wins)
-            move_cell = action_to_cell(action)
+            action, Pw = Agent.exploration_policy(gameW if move_parity else gameB, move_set = wins, pruned = pruned)
             state1 = np.copy(gameW if move_parity else gameB)
             played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
+            move_cell = action_to_cell(action)
             solver.play_move(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black)
             solver.start_solve(black if move_parity else white)
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
+            #print(state_string(gameW))
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
-            move_parity = not move_parity
-            if(not winner(gameW)==None or next_terminal == 1):
+            if((remove_padding(move_cell) in wins)):
+               winner_str = solver.sendCommand("dfpn-solve-state").strip()
+               assert(winner_str[0] is ("w" if move_parity else "b"))
+            if(not winner(gameW)==None):
                 terminal = 1
-                next_terminal = 0
             else:
                 terminal = 0
-            if(len(wins)>0):
-                next_terminal = 1
             #randomly flip states to capture symmetry
             if(np.random.choice([True,False])):
                 state2 = np.copy(gameB if move_parity else gameW)
             else:
                 state2 = flip_game(gameB if move_parity else gameW)
+            move_parity = not move_parity
             Agent.update_memory(state1, action, state2, terminal)
             Pw_cost = Agent.learn(batch_size = batch_size)
             if(Pw_cost is None):
@@ -235,8 +241,10 @@ try:
                 save(Agent, solver, Pw_vars, Pw_costs)
                 last_save = time.clock()
             wins = [unpadded_cell(x) for x in solver.stop_solve()]
+            pruned = [unpadded_cell(x) for x in solver.get_pruned(white if move_parity else black)]
             if not move_parity:
-                wins = [cell_m(x) for x in wins]
+               wins = [cell_m(x) for x in wins]
+               pruned = [cell_m(x) for x in pruned]
         if(i%snapshot_interval == 0):
             snapshot(Agent)
             save(Agent, solver, Pw_vars, Pw_costs)

@@ -24,6 +24,11 @@ def unpadded_cell(move):
 	y = int(move[1:])-1
 	return (x,y)
 
+def remove_padding(cell):
+	x=cell[0]-padding
+	y=cell[1]-padding
+	return (x,y)
+
 def move(cell):
 	return chr(ord('a')+cell[0]-padding)+str(cell[1]-padding+1)
 
