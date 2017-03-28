@@ -196,6 +196,7 @@ try:
         #     gameW = np.copy(positions[index])
         # else:
         #     gameW = flip_game(positions[index])
+        t = time.clock()
         gameW = new_game(7)
         wins = []
         pruned = []
@@ -203,7 +204,6 @@ try:
         solver.set_game(gameW)
         move_parity = False
         gameB = mirror_game(gameW)
-        t = time.clock()
         while(winner(gameW)==None):
             action, Pw = Agent.exploration_policy(gameW if move_parity else gameB, move_set = wins, pruned = pruned)
             state1 = np.copy(gameW if move_parity else gameB)
@@ -214,10 +214,7 @@ try:
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
             #print(state_string(gameW))
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
-            if((remove_padding(move_cell) in wins)):
-               winner_str = solver.sendCommand("dfpn-solve-state").strip()
-               assert(winner_str[0] is ("w" if move_parity else "b"))
-            if(not winner(gameW)==None):
+            if(not winner(gameW)==None or remove_padding(move_cell) in wins):
                 terminal = 1
             else:
                 terminal = 0
