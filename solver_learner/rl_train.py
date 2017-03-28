@@ -181,7 +181,7 @@ else:
     Agent = Learner()
 
 print("Running episodes...")
-last_save = time.clock()
+last_save = time.time()
 try:
     for i in range(len(Pw_costs), numEpisodes):
         num_step = 0
@@ -196,7 +196,7 @@ try:
         #     gameW = np.copy(positions[index])
         # else:
         #     gameW = flip_game(positions[index])
-        t = time.clock()
+        t = time.time()
         gameW = new_game(7)
         wins = []
         pruned = []
@@ -212,7 +212,7 @@ try:
             solver.play_move(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black)
             solver.start_solve(black if move_parity else white)
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
-            #print(state_string(gameW))
+            print(state_string(gameW))
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
             if(not winner(gameW)==None or remove_padding(move_cell) in wins):
                 terminal = 1
@@ -234,9 +234,9 @@ try:
             Pw_var_sum += np.mean(((1-Pw)*Pw)[np.logical_not(played)])
             Pw_cost_sum += Pw_cost
 
-            if(time.clock()-last_save > 60*save_time):
+            if(time.time()-last_save > 60*save_time):
                 save(Agent, solver, Pw_vars, Pw_costs)
-                last_save = time.clock()
+                last_save = time.time()
             wins = [unpadded_cell(x) for x in solver.stop_solve()]
             pruned = [unpadded_cell(x) for x in solver.get_pruned(white if move_parity else black)]
             if not move_parity:
@@ -245,7 +245,7 @@ try:
         if(i%snapshot_interval == 0):
             snapshot(Agent)
             save(Agent, solver, Pw_vars, Pw_costs)
-        run_time = time.clock() - t
+        run_time = time.time() - t
         print("Episode"+str(i)+"complete, Time per move: "+str(0 if num_step == 0 else run_time/num_step)+" Pw Cost: "+str(Pw_cost))
 
         #log data for this episode
