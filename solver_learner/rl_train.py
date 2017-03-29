@@ -12,7 +12,7 @@ import subprocess
 from program import Program
 import threading
 import shutil
-from Queue import Queue
+from queue import Queue
 
 
 class state_solver:
@@ -30,10 +30,9 @@ class state_solver:
         self.sendCommand("param_dfpn timelimit "+str(time_per_move))
 
     class solveThread(threading.Thread):
-        def __init__(self, solver, move_parity):
+        def __init__(self, solver):
             threading.Thread.__init__(self)
             self.solver = solver
-            self.move_parity = move_parity
         def run(self):
             move_parity = False
             while(not self.solver.terminate):
@@ -41,12 +40,13 @@ class state_solver:
                 move = item[0]
                 index = item[1]
                 if(move is 'x'):
-                    item = self.game_queue.get()
+                    item = self.solver.game_queue.get()
                     game = item[0]
                     parity = item[1]
                     self.solver._set_game(game)
                     move_parity = parity
-                self.solver.sendCommand("play "+("white" if move_parity else "black"))
+                    continue
+                self.solver.sendCommand("play "+("white " if move_parity else "black ")+move)
                 move_parity = not move_parity
                 #while we are above our latency limit simply try to catch up without doing any solving
                 if(not self.solver.move_queue.qsize()>self.solver.latency_limit):
@@ -59,14 +59,13 @@ class state_solver:
                         terminal = 0
                     if terminal is not 0:
                         self.solver.mem.set_terminal(index, terminal)
-                        print("solved state!")
 
-    def start_solve(self, color):
-        self.thread = self.solveThread(self, color)
+    def start_solve(self):
+        self.thread = self.solveThread(self)
         self.thread.start()
 
     def stop_solve(self):
-        self.interrupt()
+        self.program.interrupt()
         self.terminate = True
         self.thread.join()
 
@@ -97,7 +96,7 @@ class state_solver:
 
 
 class move_pruner:
-    def __init__(self, exe, replay_memory):
+    def __init__(self, exe):
         self.exe = exe 
         self.program = Program(self.exe, False)
         self.lock  = threading.Lock()
@@ -257,7 +256,7 @@ try:
         play_cell(gameW, action_to_cell(np.random.randint(0,boardsize*boardsize)), white)
         pruner.set_game(gameW)
         move_parity = False
-        solver.queueGame(gameW,move_parity)
+        solver.queueGame(np.copy(gameW), move_parity)
         gameB = mirror_game(gameW)
         while(winner(gameW)==None):
             action, Pw = Agent.exploration_policy(gameW if move_parity else gameB, pruned = pruned)
@@ -268,7 +267,7 @@ try:
             #print(state_string(gameW))
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
-            if(not winner(gameW)==None or remove_padding(move_cell) in wins):
+            if(not winner(gameW)==None):
                 terminal = 1
             else:
                 terminal = 0
@@ -277,9 +276,9 @@ try:
                 state2 = np.copy(gameB if move_parity else gameW)
             else:
                 state2 = flip_game(gameB if move_parity else gameW)
-            move_parity = not move_parity
             index = Agent.update_memory(state1, action, state2, terminal)
-            solver.queueMove(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black, index)
+            solver.queueMove(move(move_cell) if move_parity else move(cell_m(move_cell)), index)
+            move_parity = not move_parity
             Pw_cost = Agent.learn(batch_size = batch_size)
             if(Pw_cost is None):
                 Pw_cost = 0
