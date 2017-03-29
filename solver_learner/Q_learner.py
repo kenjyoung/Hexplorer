@@ -218,7 +218,10 @@ class Learner:
         )
 
     def update_memory(self, state1, action, state2, terminal):
-        self.mem.add_entry(state1, action, state2, terminal)
+        return self.mem.add_entry(state1, action, state2, terminal)
+
+    def get_memory(self):
+        return self.mem
 
     def learn(self, batch_size):
         #Do nothing if we don't yet have enough entries in memory for a full batch
@@ -234,6 +237,7 @@ class Learner:
         Pw_targets = np.zeros(terminals.size).astype(theano.config.floatX)
         Pw_targets[terminals==0] = joint[terminals==0]
         Pw_targets[terminals==1] = 1
+        Pw_targets[terminals==-1] = 0
         return self._update(states1, actions, Pw_targets)[0]
 
     def mentor(self, states, Pws):

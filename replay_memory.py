@@ -9,19 +9,24 @@ class replay_memory:
         self.state1_memory = np.zeros(np.concatenate(([capacity], input_shape)), dtype='bool')
         self.action_memory = np.zeros(capacity, dtype='uint16')
         self.state2_memory = np.zeros(np.concatenate(([capacity], input_shape)), dtype='bool')
-        self.terminal_memory = np.zeros(capacity, dtype='bool')
+        self.terminal_memory = np.zeros(capacity, dtype='uint8')
 
     def add_entry(self, state1, action, state2, terminal):
         self.state1_memory[self.index, :, :] = state1
         self.state2_memory[self.index, :, :] = state2
         self.action_memory[self.index] = action
         self.terminal_memory[self.index] = terminal
+        cur_index = self.index
         self.index += 1
         if(self.index>=self.capacity):
             self.full = True
             self.index = 0
         if not self.full:
             self.size += 1
+        return cur_index
+
+    def set_terminal(self, index, val):
+        self.terminal_memory[index] = val
 
     def sample_batch(self, size):
         batch = np.random.choice(np.arange(0,self.size), size=size)

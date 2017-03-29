@@ -12,25 +12,54 @@ import subprocess
 from program import Program
 import threading
 import shutil
+from Queue import Queue
 
 
-class solver:
-    def __init__(self, exe):
+class state_solver:
+    def __init__(self, exe, replay_memory, latency_limit=50, time_per_move=0.5):
         self.exe = exe 
         self.program = Program(self.exe, False)
         self.lock  = threading.Lock()
+        self.move_queue = Queue(maxsize=0)
+        self.game_queue = Queue(maxsize=0)
+        self.mem = replay_memory
+        self.latency_limit = latency_limit
+        self.time_per_move = time_per_move
         self.thread = None
+        self.terminate = False
+        self.sendCommand("param_dfpn timelimit "+str(time_per_move))
 
     class solveThread(threading.Thread):
-        def __init__(self, solver, color):
+        def __init__(self, solver, move_parity):
             threading.Thread.__init__(self)
-            self.color = color
             self.solver = solver
+            self.move_parity = move_parity
         def run(self):
-            try:
-                self.moves = self.solver.sendCommand("dfpn-solver-find-winning " + ("black" if self.color == black else "white")).split()
-            except Program.Died:
-                pass
+            move_parity = False
+            while(not self.solver.terminate):
+                item = self.solver.move_queue.get()
+                move = item[0]
+                index = item[1]
+                if(move is 'x'):
+                    item = self.game_queue.get()
+                    game = item[0]
+                    parity = item[1]
+                    self.solver._set_game(game)
+                    move_parity = parity
+                self.solver.sendCommand("play "+("white" if move_parity else "black"))
+                move_parity = not move_parity
+                #while we are above our latency limit simply try to catch up without doing any solving
+                if(not self.solver.move_queue.qsize()>self.solver.latency_limit):
+                    winner = self.solver.sendCommand("dfpn-solve-state "+("white" if move_parity else "black"))
+                    if winner[0] is 'b':
+                        terminal = 1 if move_parity else -1
+                    elif winner[1] is 'w':
+                        terminal = -1 if move_parity else 1
+                    else:
+                        terminal = 0
+                    if terminal is not 0:
+                        self.solver.mem.set_terminal(index, terminal)
+                        print("solved state!")
 
     def start_solve(self, color):
         self.thread = self.solveThread(self, color)
@@ -38,13 +67,40 @@ class solver:
 
     def stop_solve(self):
         self.interrupt()
+        self.terminate = True
         self.thread.join()
-        return self.thread.moves
 
-    def get_pruned(self, color):
-        self.sendCommand("vc-build "+("black" if color == black else "white"))
-        pruned = self.sendCommand("vc-get-mustplay "+("black" if color == black else "white")).split()
-        return [pruned[i] for i in range(len(pruned)) if i%2==0]
+    def _set_game(self, game):
+        self.sendCommand("clear_board")
+        for i in range(boardsize):
+            for j in range(boardsize):
+                cell = (i+padding,j+padding)
+                move_str = move(cell)
+                color = check_cell(game, cell)
+                if color is white:
+                    self.sendCommand("play white "+move_str)
+                elif color is black:
+                    self.sendCommand("play black "+move_str)
+
+    def sendCommand(self, command):
+        self.lock.acquire()
+        answer = self.program.sendCommand(command)
+        self.lock.release()
+        return answer
+
+    def queueMove(self, move, index):
+        self.move_queue.put((move, index))
+
+    def queueGame(self, game, parity):
+        self.move_queue.put(('x',0))
+        self.game_queue.put((game, parity))
+
+
+class move_pruner:
+    def __init__(self, exe, replay_memory):
+        self.exe = exe 
+        self.program = Program(self.exe, False)
+        self.lock  = threading.Lock()
 
     def set_game(self, game):
         self.sendCommand("clear_board")
@@ -70,13 +126,10 @@ class solver:
         self.lock.release()
         return answer
 
-    def interrupt(self):
-        self.program.interrupt()
-
-    def reconnect(self):
-        self.program.terminate()
-        self.program = Program(self.exe,True)
-        self.lock = threading.Lock()
+    def get_pruned(self, color):
+        self.sendCommand("vc-build "+("black" if color == black else "white"))
+        pruned = self.sendCommand("vc-get-mustplay "+("black" if color == black else "white")).split()
+        return [pruned[i] for i in range(len(pruned)) if i%2==0]
 
 
 def get_git_hash():
@@ -122,6 +175,7 @@ def action_to_cell(action):
 def flip_action(action):
     return boardsize*boardsize-1-action
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--load", "-l", type=str, help="Specify a file with a prebuilt network to load.")
 parser.add_argument("--data", "-d", type =str, help="Specify a directory to save/load data for this run.")
@@ -139,10 +193,6 @@ snapshot_interval = 500
 # datafile.close()
 # numPositions = len(positions)
 
-wolve_exe = "/home/kenny/Hex/benzene-vanilla/src/wolve/wolve 2>/dev/null" 
-solver = solver(wolve_exe)
-solver.sendCommand("boardsize "+str(boardsize))
-
 if args.data and not os.path.exists(args.data):
     os.makedirs(args.data)
     with open(args.data+'/info.txt', 'a') as f:
@@ -155,11 +205,6 @@ if args.data and os.path.exists(args.data+'/data.save'):
         data = pickle.load(f)
         Pw_costs = data['Pw_costs']
         Pw_vars = data['Pw_vars']
-
-if args.data and os.path.exists(args.data+'/solver.save'):
-    shutil.copy(args.data+'/solver.save', "tt.dump")
-    solver.sendCommand("dfpn-restore-tt")
-
 else:
     Pw_costs = []
     Pw_vars = []
@@ -167,7 +212,6 @@ else:
 numEpisodes = 100000
 batch_size = 32
 boardsize = 7
-
 
 #if load parameter is passed or a saved learner is available in the data directory load a network from a file
 if args.load:
@@ -180,8 +224,19 @@ else:
     print("Building agent...")
     Agent = Learner()
 
+wolve_exe = "/home/kenny/Hex/benzene-vanilla/src/wolve/wolve 2>/dev/null" 
+pruner = move_pruner(wolve_exe)
+pruner.sendCommand("boardsize "+str(boardsize))
+solver = state_solver(wolve_exe, Agent.get_memory())
+solver.sendCommand("boardsize "+str(boardsize))
+
+if args.data and os.path.exists(args.data+'/solver.save'):
+    shutil.copy(args.data+'/solver.save', "tt.dump")
+    solver.sendCommand("dfpn-restore-tt")
+
 print("Running episodes...")
 last_save = time.time()
+solver.start_solve()
 try:
     for i in range(len(Pw_costs), numEpisodes):
         num_step = 0
@@ -198,21 +253,20 @@ try:
         #     gameW = flip_game(positions[index])
         t = time.time()
         gameW = new_game(7)
-        wins = []
         pruned = []
         play_cell(gameW, action_to_cell(np.random.randint(0,boardsize*boardsize)), white)
-        solver.set_game(gameW)
+        pruner.set_game(gameW)
         move_parity = False
+        solver.queueGame(gameW,move_parity)
         gameB = mirror_game(gameW)
         while(winner(gameW)==None):
-            action, Pw = Agent.exploration_policy(gameW if move_parity else gameB, move_set = wins, pruned = pruned)
+            action, Pw = Agent.exploration_policy(gameW if move_parity else gameB, pruned = pruned)
             state1 = np.copy(gameW if move_parity else gameB)
             played = np.logical_or(state1[white,padding:-padding,padding:-padding], state1[black,padding:-padding,padding:-padding]).flatten()
             move_cell = action_to_cell(action)
-            solver.play_move(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black)
-            solver.start_solve(black if move_parity else white)
-            play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
+            pruner.play_move(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black)
             #print(state_string(gameW))
+            play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
             if(not winner(gameW)==None or remove_padding(move_cell) in wins):
                 terminal = 1
@@ -224,7 +278,8 @@ try:
             else:
                 state2 = flip_game(gameB if move_parity else gameW)
             move_parity = not move_parity
-            Agent.update_memory(state1, action, state2, terminal)
+            index = Agent.update_memory(state1, action, state2, terminal)
+            solver.queueMove(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black, index)
             Pw_cost = Agent.learn(batch_size = batch_size)
             if(Pw_cost is None):
                 Pw_cost = 0
@@ -237,10 +292,8 @@ try:
             if(time.time()-last_save > 60*save_time):
                 save(Agent, solver, Pw_vars, Pw_costs)
                 last_save = time.time()
-            wins = [unpadded_cell(x) for x in solver.stop_solve()]
-            pruned = [unpadded_cell(x) for x in solver.get_pruned(white if move_parity else black)]
+            pruned = [unpadded_cell(x) for x in pruner.get_pruned(white if move_parity else black)]
             if not move_parity:
-               wins = [cell_m(x) for x in wins]
                pruned = [cell_m(x) for x in pruned]
         if(i%snapshot_interval == 0):
             snapshot(Agent)
@@ -256,6 +309,8 @@ try:
 except KeyboardInterrupt:
     #save snapshot of network if we interrupt so we can pickup again later
     save(Agent, solver, Pw_vars, Pw_costs)
+    solver.stop_solve()
     exit(1)
 
+solver.stop_solve()
 save(Agent, solver, Pw_vars, Pw_costs)
