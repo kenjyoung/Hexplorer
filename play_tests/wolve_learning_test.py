@@ -149,12 +149,20 @@ for i in range(len(episodes), num_snapshots):
         wolve.sendCommand("param_wolve max_time "+str(move_time))
         wolve.sendCommand("param_wolve temperature "+str(temperature))
         wolve.sendCommand("boardsize 7")
-        winner = run_game(wolve, counthex, 7, move, args.verbose)
-        if(winner == gamestate.PLAYERS["white"]):
+        try:
+            winner = run_game(wolve, counthex, 7, move, args.verbose)
+        except:
             white_wins_count += 1
-        winner = run_game(counthex, wolve, 7, move, args.verbose)
-        if(winner == gamestate.PLAYERS["black"]):
+        else:
+            if(winner == gamestate.PLAYERS["white"]):
+                white_wins_count += 1
+        try:
+            winner = run_game(counthex, wolve, 7, move, args.verbose)
+        except:
             black_wins_count += 1
+        else:
+            if(winner == gamestate.PLAYERS["white"]):
+                black_wins_count += 1
     white_win_rates_count.append(white_wins_count/(7*7))
     black_win_rates_count.append(black_wins_count/(7*7))
     print("agent count, opening "+move+", black win rate: "+str(black_wins_count/(7*7))+", white win rate: "+str(white_wins_count/(7*7)))
@@ -166,12 +174,20 @@ for i in range(len(episodes), num_snapshots):
         wolve.sendCommand("param_wolve max_time "+str(move_time))
         wolve.sendCommand("param_wolve temperature "+str(temperature))
         wolve.sendCommand("boardsize 7")
-        winner = run_game(wolve, Qhex, 7, move, args.verbose)
-        if(winner == gamestate.PLAYERS["white"]):
+        try:
+            winner = run_game(wolve, Qhex, 7, move, args.verbose)
+        except:
             white_wins_Q += 1
-        winner = run_game(Qhex, wolve, 7, move, args.verbose)
-        if(winner == gamestate.PLAYERS["black"]):
+        else:
+            if(winner == gamestate.PLAYERS["white"]):
+                white_wins_Q += 1
+        try:
+            winner = run_game(Qhex, wolve, 7, move, args.verbose)
+        except:
             black_wins_Q += 1
+        else:
+            if(winner == gamestate.PLAYERS["white"]):
+                black_wins_Q += 1
     white_win_rates_Q.append(white_wins_Q/(7*7))
     black_win_rates_Q.append(black_wins_Q/(7*7))
     print("agent Q, opening "+move+", black win rate: "+str(black_wins_Q/(7*7))+", white win rate: "+str(white_wins_Q/(7*7)))

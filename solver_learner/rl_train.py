@@ -212,7 +212,7 @@ try:
             solver.play_move(move(move_cell) if move_parity else move(cell_m(move_cell)), white if move_parity else black)
             solver.start_solve(black if move_parity else white)
             play_cell(gameW, move_cell if move_parity else cell_m(move_cell), white if move_parity else black)
-            print(state_string(gameW))
+            #print(state_string(gameW))
             play_cell(gameB, cell_m(move_cell) if move_parity else move_cell, black if move_parity else white)
             if(not winner(gameW)==None or remove_padding(move_cell) in wins):
                 terminal = 1
