@@ -255,6 +255,7 @@ class Learner:
         else:
            choices = np.logical_not(played)
            for move in pruned:
+               assert(choices[move[0], move[1]]==1)
                choices[move[0], move[1]] = 0
            choices = choices.flatten()
         played = played.flatten()

@@ -77,6 +77,7 @@ def run_game(blackAgent, whiteAgent, boardsize, opening=None, verbose = False):
 wolve_exe = "/home/kenny/Hex/benzene-vanilla/src/wolve/wolve 2>/dev/null"
 hexplorer_exe = "/home/kenny/Hex/Hexplorer/playerAgents/program.py 2>/dev/null"
 Q_learner_dir = "/home/kenny/Hex/Hexplorer/Q_learner/rl_train7x7_1/"
+solver_learner_dir = "/home/kenny/Hex/Hexplorer/solver_learner/rl_train7x7_13/"
 count_learner_dir = "/home/kenny/Hex/Hexplorer/pseudocount_learner/rl_train7x7_1/"
 
 parser = argparse.ArgumentParser(description="Run tournament against wolve at various learning stages and output results.")
@@ -112,6 +113,10 @@ counthex.sendCommand("boardsize 7")
 Qhex = agent(hexplorer_exe)
 Qhex.sendCommand("boardsize 7")
 
+#Initialize solver based player
+solverhex = agent(hexplorer_exe)
+solverhex.sendCommand("boardsize 7")
+
 #Create list of all opening moves
 moves=[chr(i+ord('a'))+str(j+1) for i in range(7) for j in range(7)]
 #moves = ['a1']
@@ -119,16 +124,20 @@ moves=[chr(i+ord('a'))+str(j+1) for i in range(7) for j in range(7)]
 if(args.load):
     with open(args.load, 'rb') as f:
         data = pickle.load(f)
-        white_win_rates_Q = data['white_win_rates_Q']
-        black_win_rates_Q = data['black_win_rates_Q']
-        white_win_rates_count = data['white_win_rates_count']
-        black_win_rates_count = data['black_win_rates_count']
+        # white_win_rates_Q = data['white_win_rates_Q']
+        # black_win_rates_Q = data['black_win_rates_Q']
+        # white_win_rates_count = data['white_win_rates_count']
+        # black_win_rates_count = data['black_win_rates_count']
+        white_win_rates_solver = data['white_win_rates_solver']
+        black_win_rates_solver = data['black_win_rates_solver']
         episodes = data['episodes']
 else:
     white_win_rates_Q = []
     black_win_rates_Q = []
     white_win_rates_count = []
     black_win_rates_count = []
+    white_win_rates_solver = []
+    black_win_rates_solver = []
     episodes = []
 
 for i in range(len(episodes), num_snapshots):
@@ -136,13 +145,17 @@ for i in range(len(episodes), num_snapshots):
     episodes.append(snapshot_num*snapshot_interval)
     Qloadfile = Q_learner_dir+'snapshot_'+str(snapshot_num)+'.save'
     countloadfile = count_learner_dir+'snapshot_'+str(snapshot_num)+'.save'
+    solverloadfile = solver_learner_dir+'snapshot_'+str(snapshot_num)+'.save'
     counthex.sendCommand('agent count '+countloadfile)
     Qhex.sendCommand('agent Q '+Qloadfile)
+    solverhex.sendCommand('agent Q '+solverloadfile)
     #Initialize win counts
     white_wins_Q = 0
     black_wins_Q = 0
     white_wins_count = 0
     black_wins_count = 0
+    white_wins_solver = 0
+    black_wins_solver = 0
     #Run games for count based agent
     for move in moves:
         wolve.reconnect()
@@ -161,7 +174,7 @@ for i in range(len(episodes), num_snapshots):
         except:
             black_wins_count += 1
         else:
-            if(winner == gamestate.PLAYERS["white"]):
+            if(winner == gamestate.PLAYERS["black"]):
                 black_wins_count += 1
     white_win_rates_count.append(white_wins_count/(7*7))
     black_win_rates_count.append(black_wins_count/(7*7))
@@ -186,15 +199,42 @@ for i in range(len(episodes), num_snapshots):
         except:
             black_wins_Q += 1
         else:
-            if(winner == gamestate.PLAYERS["white"]):
+            if(winner == gamestate.PLAYERS["black"]):
                 black_wins_Q += 1
     white_win_rates_Q.append(white_wins_Q/(7*7))
     black_win_rates_Q.append(black_wins_Q/(7*7))
     print("agent Q, opening "+move+", black win rate: "+str(black_wins_Q/(7*7))+", white win rate: "+str(white_wins_Q/(7*7)))
 
+    #Run games for solver-learning based agent
+    white_fails = 0
+    black_fails = 0
+    for move in moves:
+        wolve.reconnect()
+        wolve.sendCommand("param_wolve max_time "+str(move_time))
+        wolve.sendCommand("param_wolve temperature "+str(temperature))
+        wolve.sendCommand("boardsize 7")
+        try:
+            winner = run_game(wolve, solverhex, 7, move, args.verbose)
+        except:
+            white_fails+=1
+        else:
+            if(winner == gamestate.PLAYERS["white"]):
+                white_wins_solver += 1
+        try:
+            winner = run_game(solverhex, wolve, 7, move, args.verbose)
+        except:
+            black_fails+=1
+        else:
+            if(winner == gamestate.PLAYERS["black"]):
+                black_wins_solver += 1
+    white_win_rates_solver.append(white_wins_solver/(7*7-white_fails))
+    black_win_rates_solver.append(black_wins_solver/(7*7-black_fails))
+    print("agent solver, opening "+move+", black win rate: "+str(black_wins_solver/(7*7))+", white win rate: "+str(white_wins_Q/(7*7)))
+
     #Save data for full run
     datafile = 'wolve_learning.save'
-    data = {'black_win_rates_Q':black_win_rates_Q, 'white_win_rates_Q':white_win_rates_Q, 'black_win_rates_count':black_win_rates_count, 'white_win_rates_count':white_win_rates_count, 'episodes':episodes}
+    #data = {'black_win_rates_Q':black_win_rates_Q, 'white_win_rates_Q':white_win_rates_Q, 'black_win_rates_count':black_win_rates_count, 'white_win_rates_count':white_win_rates_count, 'black_win_rates_solver':black_win_rates_solver, 'white_win_rates_solver':white_win_rates_solver, 'episodes':episodes}
+    data = {'black_win_rates_solver':black_win_rates_solver, 'white_win_rates_solver':white_win_rates_solver, 'episodes':episodes}
     with open(datafile, 'wb') as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
